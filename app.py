@@ -234,7 +234,7 @@ while running:
     current_time = time.time() 
     
     cursor_x, cursor_y = tracker.get_cursor()
-
+    #print(f"DEBUG - Finger Coordinates: X={cursor_x}, Y={cursor_y}")
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False

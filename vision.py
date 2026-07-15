@@ -7,6 +7,9 @@ import threading
 import sys
 import os
 
+# Import our central configuration
+import config
+
 class HandTracker:
     def __init__(self, homography_matrix):
         self.homography_matrix = np.array(homography_matrix, dtype=np.float32)
@@ -26,13 +29,21 @@ class HandTracker:
         self.detector = mp_vision.HandLandmarker.create_from_options(options)
 
         # --- INITIALIZE CAMERA ---
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(config.CAMERA_INDEX)
+        
         if not self.cap.isOpened():
             print("❌ Error: Could not open camera.")
             sys.exit()
         
+        # Apply the central overrides
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAM_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
+
+        # Read back the actual hardware values to be safe
         self.cam_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.cam_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        print(f"[DEBUG] Camera initialized in tracking thread at: {self.cam_w}x{self.cam_h}")
 
     def start(self):
         """Starts the background tracking thread."""
@@ -66,7 +77,10 @@ class HandTracker:
                 if detection_result.hand_landmarks:
                     lost_frames = 0 
                     index_finger = detection_result.hand_landmarks[0][8]
-                    cam_px, cam_py = index_finger.x * self.cam_w, index_finger.y * self.cam_h
+                    
+                    # Multiply normalized finger position (0.0 to 1.0) by configured camera size
+                    cam_px = index_finger.x * config.CAM_WIDTH
+                    cam_py = index_finger.y * config.CAM_HEIGHT
                     
                     pt = np.array([[[cam_px, cam_py]]], dtype=np.float32)
                     warped_pt = cv2.perspectiveTransform(pt, self.homography_matrix)

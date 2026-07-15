@@ -1,3 +1,4 @@
+import config
 import cv2
 import numpy as np
 import pygame
@@ -61,7 +62,13 @@ def get_corner_markers(size):
         markers.append(bg)
     return markers
 
-cap = cv2.VideoCapture(0)
+# Look for this in calibrate.py:
+# --- INITIALIZE CAMERA FROM CONFIG ---
+cap = cv2.VideoCapture(config.CAMERA_INDEX)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAM_WIDTH)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_HEIGHT)
+cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
 
 # --- 4. STATE VARIABLES ---
 state = "GRID"
