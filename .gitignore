@@ -4,3 +4,4 @@ __pycache__/
 saved_states.json
 led_config.json
 vosk-model-small-en-us-0.15/
+.env

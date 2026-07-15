@@ -16,8 +16,10 @@ from google import genai
 from google.genai import types
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
-client = genai.Client(api_key="YOUR_API_KEY_HERE")
+from dotenv import load_dotenv
+load_dotenv()
 
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 physics_schema = types.Schema(
     type=types.Type.OBJECT,
     properties={
