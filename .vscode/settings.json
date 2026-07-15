@@ -1,0 +1,7 @@
+{
+    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.terminal.activateEnvInSelectedTerminal": true,
+    "python.analysis.extraPaths": [
+        "./venv/lib/python3.14/site-packages"
+    ]
+}
