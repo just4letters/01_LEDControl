@@ -1,10 +1,16 @@
+import sys
+import os
+
+# Make the script aware of the main 01_LEDControl root folder
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
+
 from core import config
 import cv2
 import numpy as np
 import pygame
-import sys
 import json
-
 # --- 1. INITIALIZE RESOURCES ---
 pygame.init()
 pygame.key.set_repeat(250, 50) 
@@ -140,13 +146,13 @@ while running:
                             
                             matrix, _ = cv2.findHomography(np.float32(cam_pts), np.float32(pygame_pts))
                             
-                            config = {
+                            save_data = {
                                 "roi_x": roi_x, "roi_y": roi_y, 
                                 "roi_w": roi_w, "roi_h": roi_h,
                                 "homography_matrix": matrix.tolist()
                             }
                             with open("led_config.json", "w") as f:
-                                json.dump(config, f, indent=4)
+                                json.dump(save_data, f, indent=4)
                                 
                             print(f"\nSUCCESS! Bounds ({roi_w}x{roi_h}) and Homography Matrix saved.")
                             print("Closing calibration tool...")
