@@ -7,8 +7,8 @@ def get_selected_node(cursor_x, cursor_y, nodes, current_selected_node):
     if cursor_x < 0 or cursor_y < 0:
         return None
         
-    GRAB_RADIUS = 30
-    RELEASE_RADIUS = 70
+    GRAB_RADIUS = 15
+    RELEASE_RADIUS = 50
     
     if current_selected_node in nodes:
         dx = cursor_x - current_selected_node['x']
@@ -48,6 +48,7 @@ def spawn_particles(particles, nodes, finger_state, current_time):
                     'vx': math.cos(angle) * speed,
                     'vy': math.sin(angle) * speed,
                     'color': color,
+                    'size': node.get('emit_size', 2),
                     'life': 255 # Fade out over time
                 })
                 node['last_emit_time'] = current_time
@@ -91,14 +92,18 @@ def update_physics(particles, nodes, finger_state, global_state, canvas_w, canva
                 dy = node['y'] - p['y']
                 dist_sq = dx**2 + dy**2
                 
-                if 10 < dist_sq < 40000: # Max range of effect
+                if dist_sq > 0.1:
                     dist = math.sqrt(dist_sq)
-                    force = node['physics_strength'] / dist
-                    if node['physics_effect'] == 'repel':
-                        force = -force
-                        
-                    p['vx'] += (dx / dist) * force
-                    p['vy'] += (dy / dist) * force
+                    # Deduct the node's radius so math starts exactly at the edge
+                    eff_dist = max(1.0, dist - node['size'])
+                    
+                    if 1 < eff_dist < 200: 
+                        force = node['physics_strength'] / eff_dist
+                        if node['physics_effect'] == 'repel':
+                            force = -force
+                            
+                        p['vx'] += (dx / dist) * force
+                        p['vy'] += (dy / dist) * force
 
         # 3. Apply Finger Physics
         if finger_state['x'] > 0 and finger_state['mode'] in ['attract', 'repel']:
@@ -130,11 +135,11 @@ def update_physics(particles, nodes, finger_state, global_state, canvas_w, canva
 def draw_scene(screen, particles, nodes, selected_node, current_time):
     # Draw Particles
     for p in particles:
-        # Fade color based on life
         alpha_ratio = max(0, p['life'] / 255.0)
         c = p['color']
         faded_color = (int(c[0]*alpha_ratio), int(c[1]*alpha_ratio), int(c[2]*alpha_ratio))
-        pygame.draw.rect(screen, faded_color, (int(p['x']), int(p['y']), 2, 2))
+        p_size = p.get('size', 2)
+        pygame.draw.rect(screen, faded_color, (int(p['x']), int(p['y']), p_size, p_size))
 
     # Draw Nodes
     for node in nodes:
@@ -169,21 +174,23 @@ def draw_scene(screen, particles, nodes, selected_node, current_time):
         # Render Shape
         shape = node.get('shape', 'circle')
         if draw_color != (0, 0, 0): # Don't draw if blinked off
-            if shape == "square":
+            if draw_size == 1:
+                # The Absolute Single Pixel Override
+                pygame.draw.rect(screen, draw_color, (x, y, 1, 1))
+            elif shape == "square":
                 pygame.draw.rect(screen, draw_color, (x - draw_size, y - draw_size, draw_size*2, draw_size*2))
             elif shape == "rectangle":
                 pygame.draw.rect(screen, draw_color, (x - draw_size*2, y - draw_size, draw_size*4, draw_size*2))
             elif shape == "line":
-                # Horizontal line
-                pygame.draw.line(screen, draw_color, (x - draw_size*2, y), (x + draw_size*2, y), max(1, draw_size//2))
+                # Horizontal line: width based on size, height locked to 1
+                pygame.draw.line(screen, draw_color, (x - draw_size*2, y), (x + draw_size*2, y), 1)
             elif shape == "vertical_line":
-                # Vertical line
-                pygame.draw.line(screen, draw_color, (x, y - draw_size*2), (x, y + draw_size*2), max(1, draw_size//2))
+                # Vertical line: height based on size, width locked to 1
+                pygame.draw.line(screen, draw_color, (x, y - draw_size*2), (x, y + draw_size*2), 1)
             elif shape == "triangle":
-                # Calculate the 3 points of an equilateral-ish triangle
-                p1 = (x, y - draw_size)                     # Top point
-                p2 = (x - draw_size, y + draw_size)         # Bottom left
-                p3 = (x + draw_size, y + draw_size)         # Bottom right
+                p1 = (x, y - draw_size)
+                p2 = (x - draw_size, y + draw_size)
+                p3 = (x + draw_size, y + draw_size)
                 pygame.draw.polygon(screen, draw_color, [p1, p2, p3])
             else: 
                 # Default Circle

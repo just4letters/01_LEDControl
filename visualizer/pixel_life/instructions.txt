@@ -27,5 +27,6 @@ NODE PARAMETERS:
 - animation: "static", "pulse", "blink", "glisten"
 - physics_effect: "none", "attract", "repel"
 - emit_colors: Array of RGB arrays
+- emit_size: Integer (1 to 6)
 - emit_speed: Float (0.5 to 15.0)
 - emit_rate: Integer (1 to 100)

@@ -41,6 +41,7 @@ physics_schema = types.Schema(
             type=types.Type.ARRAY, 
             items=types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER))
         ),
+        "emit_size": types.Schema(type=types.Type.INTEGER),
         "finger_mode": types.Schema(type=types.Type.STRING, enum=["none", "emit", "attract", "repel"]),
         "gravity_x": types.Schema(type=types.Type.NUMBER),
         "gravity_y": types.Schema(type=types.Type.NUMBER)
@@ -249,6 +250,7 @@ while running:
                 "physics_strength": payload.get("physics_strength", 1.0),
                 "emit_rate": emit_rate,
                 "emit_speed": payload.get("emit_speed", 2.0),
+                "emit_size": payload.get("emit_size", 2),
                 "emit_colors": emit_cols,
                 "last_emit_time": 0, "animation_timer": 0
             })
@@ -262,7 +264,7 @@ while running:
             if "physics_strength" in payload: selected_node['physics_strength'] = payload['physics_strength']
             if "emit_rate" in payload: selected_node['emit_rate'] = payload['emit_rate']
             if "emit_speed" in payload: selected_node['emit_speed'] = payload['emit_speed']
-            
+            if "emit_size" in payload: selected_node['emit_size'] = payload['emit_size']
             if "emit_colors" in payload: 
                 selected_node['emit_colors'] = [tuple(c) for c in payload['emit_colors']]
                 
