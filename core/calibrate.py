@@ -1,4 +1,4 @@
-import config
+from core import config
 import cv2
 import numpy as np
 import pygame

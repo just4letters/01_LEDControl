@@ -8,7 +8,7 @@ import sys
 import os
 
 # Import our central configuration
-import config
+from core import config
 
 class HandTracker:
     def __init__(self, homography_matrix):

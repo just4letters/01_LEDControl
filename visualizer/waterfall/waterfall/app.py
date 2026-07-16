@@ -1,6 +1,6 @@
 # --- VERSION 6.10 ---
 from vision import HandTracker
-from physics import spawn_particles, update_physics
+from visualizer.waterfall.physics import spawn_particles, update_physics
 import numpy as np
 import pygame
 import sys
