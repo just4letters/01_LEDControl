@@ -79,8 +79,8 @@ def main():
         screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
         
     pygame.mouse.set_visible(False)
-    font_title = pygame.font.SysFont(None, 64)
-    font_item = pygame.font.SysFont(None, 48)
+    font_title = pygame.font.SysFont(None, 24)
+    font_item = pygame.font.SysFont(None, 20)
     clock = pygame.time.Clock()
     
     running = True
@@ -102,12 +102,12 @@ def main():
         screen.fill((0, 0, 0))
         
         # Draw Launcher UI
-        screen.blit(font_title.render("SYSTEM LAUNCHER", True, (0, 255, 255)), (100, 100))
+        screen.blit(font_title.render("SYSTEM LAUNCHER", True, (0, 255, 255)), (50, 50))
         for i, app in enumerate(apps):
             clean_name = app.replace("_", " ").title()
-            screen.blit(font_item.render(f"[{i + 1}] - {clean_name}", True, (255, 255, 255)), (150, 200 + (i * 60)))
+            screen.blit(font_item.render(f"[{i + 1}] - {clean_name}", True, (255, 255, 255)), (50, 100 + (i * 20)))
             
-        screen.blit(font_item.render("🎤 Voice Active: Say the name or number...", True, (100, 100, 100)), (150, 800))
+        screen.blit(font_item.render("🎤 Voice Active: Say the name or number...", True, (100, 100, 100)), (20, 200))
         
         pygame.display.flip()
         clock.tick(30)

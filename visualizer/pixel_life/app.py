@@ -33,15 +33,15 @@ physics_schema = types.Schema(
         "size": types.Schema(type=types.Type.INTEGER),
         "color": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER)),
         "animation": types.Schema(type=types.Type.STRING, enum=["static", "pulse", "blink", "glisten"]),
-        "physics_effect": types.Schema(type=types.Type.STRING, enum=["none", "attract", "repel"]),
+        "physics_effect": types.Schema(type=types.Type.STRING, enum=["none", "attract", "bounce"]),
         "physics_strength": types.Schema(type=types.Type.NUMBER),
         "emit_speed": types.Schema(type=types.Type.NUMBER),
         "emit_rate": types.Schema(type=types.Type.INTEGER),
+        "emit_size": types.Schema(type=types.Type.INTEGER),
         "emit_colors": types.Schema(
             type=types.Type.ARRAY, 
             items=types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER))
         ),
-        "emit_size": types.Schema(type=types.Type.INTEGER),
         "finger_mode": types.Schema(type=types.Type.STRING, enum=["none", "emit", "attract", "repel"]),
         "gravity_x": types.Schema(type=types.Type.NUMBER),
         "gravity_y": types.Schema(type=types.Type.NUMBER)
@@ -61,7 +61,7 @@ def listen_loop():
     while True:
         try:
             with sr.Microphone(sample_rate=16000) as source:
-                print("\n[VOICE] Local Whisper active! (Say 'Spawn a pulsing red circle here')")
+                print("\n[VOICE] Local Whisper active!")
                 while True:
                     try:
                         audio = recognizer.listen(source, phrase_time_limit=5)
@@ -95,7 +95,6 @@ def ai_worker_loop():
     print("[DEBUG] ai_worker_loop thread started.")
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
     
-    # Dynamic path for Pixel Life instructions
     current_dir = os.path.dirname(os.path.abspath(__file__))
     instructions_path = os.path.join(current_dir, "instructions.txt")
     
@@ -110,7 +109,6 @@ def ai_worker_loop():
             print(f"❌ Error: Missing {instructions_path}")
             continue 
             
-        # Inject live data so AI knows the context
         dynamic_prompt = base_prompt.format(
             gravity_x=global_state['gravity_x'],
             gravity_y=global_state['gravity_y'],
@@ -152,22 +150,19 @@ except:
 pygame.init()
 OS_W, OS_H = 1920, 1080
 try:
-    # Try to push to the extended monitor (Display 1)
     screen = pygame.display.set_mode((OS_W, OS_H), pygame.FULLSCREEN, display=1)
 except Exception:
-    # Fallback to the main monitor if the extended one gets unplugged
     screen = pygame.display.set_mode((OS_W, OS_H), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
 
-# --- 5. INITIALIZE STATE (THE ECS ENGINE) ---
+# --- 5. INITIALIZE STATE ---
 nodes = []
 particles = []
 selected_node = None
 
-# Track the finger's physics state
 finger_state = {
     'x': -100, 'y': -100, 
-    'mode': 'none', # "none", "emit", "attract", "repel"
+    'mode': 'none', 
     'physics_strength': 2.0,
     'emit_rate': 10,
     'emit_speed': 3.0,
@@ -175,7 +170,6 @@ finger_state = {
     'last_emit_time': 0
 }
 
-# Track global world physics
 global_state = {
     'gravity_x': 0.0,
     'gravity_y': 0.0
@@ -194,20 +188,16 @@ running = True
 while running:
     current_time = time.time()
     
-    # 1. Get Finger Position
     cursor_x, cursor_y = tracker.get_cursor()
     finger_state['x'] = cursor_x
     finger_state['y'] = cursor_y
 
-    # 2. Check Event Queue (Keyboard Esc)
     for event in pygame.event.get():
         if event.type == pygame.QUIT: running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
             
-    # 3. Handle Sticky Selection
     selected_node = get_selected_node(cursor_x, cursor_y, nodes, selected_node)
 
-    # 4. Process AI Actions
     while not action_queue.empty():
         payload = action_queue.get()
         action = payload.get("action")
@@ -232,25 +222,25 @@ while running:
             targ_x = cursor_x if cursor_x > 0 else CANVAS_W // 2
             targ_y = cursor_y if cursor_y > 0 else CANVAS_H // 2
             
+            # Default to single pixel (size 1, shape square) if unspecified
             col = tuple(payload.get("color", [255, 255, 255]))
             emit_cols = [tuple(c) for c in payload.get("emit_colors", [])]
             
-            # --- AI LAZINESS FAIL-SAFE ---
             emit_rate = payload.get("emit_rate", 0)
             if len(emit_cols) > 0 and emit_rate == 0:
-                emit_rate = 15 # Automatically turn the faucet on!
+                emit_rate = 15
                 
             nodes.append({
                 "x": targ_x, "y": targ_y,
-                "size": payload.get("size", 4),
-                "shape": payload.get("shape", "circle"),
+                "size": payload.get("size", 1), # Default to single pixel
+                "shape": payload.get("shape", "square"), # Default to square
                 "color": col,
                 "animation": payload.get("animation", "static"),
                 "physics_effect": payload.get("physics_effect", "none"),
                 "physics_strength": payload.get("physics_strength", 1.0),
                 "emit_rate": emit_rate,
                 "emit_speed": payload.get("emit_speed", 2.0),
-                "emit_size": payload.get("emit_size", 2),
+                "emit_size": payload.get("emit_size", 1), # Default to single pixel emission
                 "emit_colors": emit_cols,
                 "last_emit_time": 0, "animation_timer": 0
             })
@@ -265,19 +255,18 @@ while running:
             if "emit_rate" in payload: selected_node['emit_rate'] = payload['emit_rate']
             if "emit_speed" in payload: selected_node['emit_speed'] = payload['emit_speed']
             if "emit_size" in payload: selected_node['emit_size'] = payload['emit_size']
+            
             if "emit_colors" in payload: 
                 selected_node['emit_colors'] = [tuple(c) for c in payload['emit_colors']]
-                
-                # --- AI LAZINESS FAIL-SAFE ---
                 if payload.get("emit_rate") is None and selected_node.get("emit_rate", 0) == 0:
-                    selected_node['emit_rate'] = 15 # Turn it on automatically
+                    selected_node['emit_rate'] = 15
 
     # 5. Run Physics
     spawn_particles(particles, nodes, finger_state, current_time)
     update_physics(particles, nodes, finger_state, global_state, CANVAS_W, CANVAS_H)
 
     # 6. Render
-    screen.fill((0, 0, 0)) # Clear frame
+    screen.fill((0, 0, 0)) 
     draw_scene(screen, particles, nodes, selected_node, current_time)
     
     # Draw Cursor
@@ -286,7 +275,6 @@ while running:
     pygame.display.flip()
     clock.tick(60)
 
-# Shutdown
 tracker.stop()
 pygame.quit()
 sys.exit()
