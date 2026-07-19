@@ -27,9 +27,7 @@ physics_schema = types.Schema(
         "action": types.Schema(
             type=types.Type.STRING, 
             enum=[
-                # Universal System Commands
                 "undo", "save_state", "load_state", "clear_all", "quit", "ignore",
-                # Waterfall Specific
                 "create_obstacle", "modify_obstacle", "remove_obstacle", "rain", "burst", "set_global"
             ]
         ),
@@ -44,6 +42,8 @@ physics_schema = types.Schema(
         "particle_size": types.Schema(type=types.Type.INTEGER),
         "obstacle_size": types.Schema(type=types.Type.INTEGER),
         "emitter_source": types.Schema(type=types.Type.STRING, enum=["sky", "finger"]), 
+        "move_x": types.Schema(type=types.Type.INTEGER),
+        "move_y": types.Schema(type=types.Type.INTEGER),
         "reply_message": types.Schema(type=types.Type.STRING)
     },
     required=["action"]
@@ -298,6 +298,8 @@ while running:
         elif action == "modify_obstacle" and selected_obstacle is not None:
             if "color_rgb" in payload: selected_obstacle['color'] = tuple(payload["color_rgb"])
             if "obstacle_size" in payload: selected_obstacle['size'] = payload["obstacle_size"]
+            if "move_x" in payload: selected_obstacle['x'] += payload["move_x"]
+            if "move_y" in payload: selected_obstacle['y'] += payload["move_y"]
             
         elif action == "clear_all":
             obstacles.clear()

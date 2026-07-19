@@ -28,9 +28,7 @@ physics_schema = types.Schema(
         "action": types.Schema(
             type=types.Type.STRING, 
             enum=[
-                # Universal System Commands
                 "undo", "save_state", "load_state", "clear_all", "quit", "ignore",
-                # Pixel Life Specific
                 "create_node", "modify_node", "remove_node", "set_finger", "set_global"
             ]
         ),
@@ -48,6 +46,8 @@ physics_schema = types.Schema(
             items=types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER))
         ),
         "finger_mode": types.Schema(type=types.Type.STRING, enum=["none", "emit", "attract", "repel"]),
+        "move_x": types.Schema(type=types.Type.INTEGER),
+        "move_y": types.Schema(type=types.Type.INTEGER),
         "gravity_x": types.Schema(type=types.Type.NUMBER),
         "gravity_y": types.Schema(type=types.Type.NUMBER)
     },
@@ -270,6 +270,8 @@ while running:
             if "emit_rate" in payload: selected_node['emit_rate'] = payload['emit_rate']
             if "emit_speed" in payload: selected_node['emit_speed'] = payload['emit_speed']
             if "emit_size" in payload: selected_node['emit_size'] = payload['emit_size']
+            if "move_x" in payload: selected_node['x'] += payload["move_x"]
+            if "move_y" in payload: selected_node['y'] += payload["move_y"]
             
             if "emit_colors" in payload: 
                 selected_node['emit_colors'] = [tuple(c) for c in payload['emit_colors']]
