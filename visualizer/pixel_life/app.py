@@ -15,8 +15,8 @@ from google.genai import types
 from core.vision import HandTracker
 from core import config
 from physics import get_selected_node, spawn_particles, update_physics, draw_scene
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
@@ -27,7 +27,12 @@ physics_schema = types.Schema(
     properties={
         "action": types.Schema(
             type=types.Type.STRING, 
-            enum=["create_node", "modify_node", "set_finger", "set_global", "clear_all", "quit", "ignore"]
+            enum=[
+                # Universal System Commands
+                "undo", "save_state", "load_state", "clear_all", "quit", "ignore",
+                # Pixel Life Specific
+                "create_node", "modify_node", "remove_node", "set_finger", "set_global"
+            ]
         ),
         "shape": types.Schema(type=types.Type.STRING, enum=["square", "circle", "rectangle", "line", "vertical_line", "triangle"]),
         "size": types.Schema(type=types.Type.INTEGER),
@@ -109,12 +114,22 @@ def ai_worker_loop():
             print(f"❌ Error: Missing {instructions_path}")
             continue 
             
-        dynamic_prompt = base_prompt.format(
-            gravity_x=global_state['gravity_x'],
-            gravity_y=global_state['gravity_y'],
-            finger_mode=finger_state['mode'],
-            node_count=len(nodes)
-        )
+        # --- STATE AWARENESS PIPELINE ---
+        node_context = "None"
+        if selected_node is not None:
+            clean_node = {k: v for k, v in selected_node.items() if k not in ['last_emit_time', 'animation_timer']}
+            node_context = json.dumps(clean_node)
+            
+        try:
+            dynamic_prompt = base_prompt.format(
+                gravity_x=global_state['gravity_x'],
+                gravity_y=global_state['gravity_y'],
+                node_count=len(nodes),
+                selected_node_data=node_context
+            )
+        except KeyError as e:
+            print(f"Prompt formatting error: missing {e}")
+            continue
         
         success = False
         for model_name in fallback_models:
@@ -155,7 +170,7 @@ except Exception:
     screen = pygame.display.set_mode((OS_W, OS_H), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
 
-# --- 5. INITIALIZE STATE ---
+# --- 5. APP STATE ---
 nodes = []
 particles = []
 selected_node = None
@@ -187,7 +202,6 @@ running = True
 
 while running:
     current_time = time.time()
-    
     cursor_x, cursor_y = tracker.get_cursor()
     finger_state['x'] = cursor_x
     finger_state['y'] = cursor_y
@@ -208,6 +222,11 @@ while running:
             nodes.clear()
             particles.clear()
             
+        elif action == "remove_node" and selected_node is not None:
+            if selected_node in nodes:
+                nodes.remove(selected_node)
+            selected_node = None
+            
         elif action == "set_global":
             if "gravity_x" in payload: global_state['gravity_x'] = payload['gravity_x']
             if "gravity_y" in payload: global_state['gravity_y'] = payload['gravity_y']
@@ -221,26 +240,22 @@ while running:
         elif action == "create_node":
             targ_x = cursor_x if cursor_x > 0 else CANVAS_W // 2
             targ_y = cursor_y if cursor_y > 0 else CANVAS_H // 2
-            
-            # Default to single pixel (size 1, shape square) if unspecified
             col = tuple(payload.get("color", [255, 255, 255]))
             emit_cols = [tuple(c) for c in payload.get("emit_colors", [])]
-            
             emit_rate = payload.get("emit_rate", 0)
-            if len(emit_cols) > 0 and emit_rate == 0:
-                emit_rate = 15
+            if len(emit_cols) > 0 and emit_rate == 0: emit_rate = 15
                 
             nodes.append({
                 "x": targ_x, "y": targ_y,
-                "size": payload.get("size", 1), # Default to single pixel
-                "shape": payload.get("shape", "square"), # Default to square
+                "size": payload.get("size", 1), 
+                "shape": payload.get("shape", "square"), 
                 "color": col,
                 "animation": payload.get("animation", "static"),
                 "physics_effect": payload.get("physics_effect", "none"),
                 "physics_strength": payload.get("physics_strength", 1.0),
                 "emit_rate": emit_rate,
                 "emit_speed": payload.get("emit_speed", 2.0),
-                "emit_size": payload.get("emit_size", 1), # Default to single pixel emission
+                "emit_size": payload.get("emit_size", 1),
                 "emit_colors": emit_cols,
                 "last_emit_time": 0, "animation_timer": 0
             })
@@ -261,15 +276,13 @@ while running:
                 if payload.get("emit_rate") is None and selected_node.get("emit_rate", 0) == 0:
                     selected_node['emit_rate'] = 15
 
-    # 5. Run Physics
+    # Run Physics
     spawn_particles(particles, nodes, finger_state, current_time)
     update_physics(particles, nodes, finger_state, global_state, CANVAS_W, CANVAS_H)
 
-    # 6. Render
+    # Render
     screen.fill((0, 0, 0)) 
     draw_scene(screen, particles, nodes, selected_node, current_time)
-    
-    # Draw Cursor
     pygame.draw.circle(screen, (100, 100, 100), (cursor_x, cursor_y), 4, 1)
 
     pygame.display.flip()

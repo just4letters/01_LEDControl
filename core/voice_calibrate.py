@@ -95,6 +95,11 @@ def ai_worker_loop():
 # --- 4. INITIALIZE CALIBRATION RESOURCES ---
 pygame.init()
 pygame.key.set_repeat(250, 50) 
+pygame.font.init()
+
+# Setup fonts for the error message
+font_error_lg = pygame.font.SysFont(None, 120)
+font_error_sm = pygame.font.SysFont(None, 80)
 
 OS_W, OS_H = 1920, 1080
 try:
@@ -150,6 +155,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_HEIGHT)
 cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
 
 roi_x, roi_y, roi_w, roi_h = 0, 0, 256, 256 
+error_display_timer = 0  # This tracks how long to show the camera error on the LED wall
 
 # --- START AI THREADS ---
 threading.Thread(target=listen_loop, daemon=True).start()
@@ -275,6 +281,8 @@ while running:
                             sys.exit(0)
                         else:
                             print("\nError: Camera cannot see all 4 corner markers clearly. Adjust the camera and say 'looks good' again.")
+                            # Set the timer to display the error on the LED wall for 5 seconds
+                            error_display_timer = time.time() + 5.0
 
                 roi_w, roi_h = max(100, roi_w), max(100, roi_h)
 
@@ -318,6 +326,28 @@ while running:
             screen.blit(tune_markers[1], (roi_x + roi_w - tune_marker_size, roi_y))
             screen.blit(tune_markers[2], (roi_x + roi_w - tune_marker_size, roi_y + roi_h - tune_marker_size))
             screen.blit(tune_markers[3], (roi_x, roi_y + roi_h - tune_marker_size))
+            
+            # Draw the Camera Error if the timer is active
+            if time.time() < error_display_timer:
+                # Calculate the dead-center of your physical LED area
+                led_center_x = roi_x + (roi_w // 2)
+                led_center_y = roi_y + (roi_h // 2)
+                
+                # Big red warning text
+                err_text = font_error_lg.render("ERROR: ADJUST CAMERA", True, (255, 50, 50))
+                err_rect = err_text.get_rect(center=(led_center_x, led_center_y - 50))
+                
+                # Smaller context text
+                sub_text = font_error_sm.render("Cannot see all 4 corner markers", True, (255, 200, 200))
+                sub_rect = sub_text.get_rect(center=(led_center_x, led_center_y + 50))
+                
+                # Draw black backgrounds behind the text so it covers up the grid perfectly
+                pygame.draw.rect(screen, (0, 0, 0), err_rect.inflate(60, 40))
+                pygame.draw.rect(screen, (0, 0, 0), sub_rect.inflate(60, 40))
+                
+                # Draw the actual text
+                screen.blit(err_text, err_rect)
+                screen.blit(sub_text, sub_rect)
             
             sys.stdout.write(f"\rFine-Tuning: X:{roi_x} Y:{roi_y} | Resolution: {roi_w}x{roi_h}  ")
             sys.stdout.flush()

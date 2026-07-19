@@ -1,4 +1,4 @@
-# --- VERSION 6.10 ---
+# --- VERSION 6.11 (Unified Architecture) ---
 from core.vision import HandTracker
 from core import config
 from physics import spawn_particles, update_physics
@@ -15,18 +15,23 @@ import speech_recognition as sr
 import time
 from google import genai
 from google.genai import types
-
-# --- 1. AI BRAIN SETUP (GEMINI) ---
 from dotenv import load_dotenv
+
 load_dotenv()
 
+# --- 1. AI BRAIN SETUP (GEMINI) ---
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 physics_schema = types.Schema(
     type=types.Type.OBJECT,
     properties={
         "action": types.Schema(
             type=types.Type.STRING, 
-            enum=["burst", "rain", "clear", "modify", "quit", "ignore", "add_obstacle", "modify_obstacle", "clear_obstacles", "save_state", "load_state"]
+            enum=[
+                # Universal System Commands
+                "undo", "save_state", "load_state", "clear_all", "quit", "ignore",
+                # Waterfall Specific
+                "create_obstacle", "modify_obstacle", "remove_obstacle", "rain", "burst", "set_global"
+            ]
         ),
         "state_name": types.Schema(type=types.Type.STRING),
         "color_rgb": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER)),
@@ -69,46 +74,31 @@ def listen_loop():
                             print(f"\n> Heard: '{text}'")
                             
                             if "shut down" in text_lower or "quit" in text_lower:
-                                print("⚡ Local Override: Shutting down instantly!")
                                 action_queue.put({"action": "quit"})
                                 return 
-                                
                             if "clear the screen" in text_lower:
-                                print("⚡ Local Override: Clearing canvas instantly!")
-                                action_queue.put({"action": "clear"})
+                                action_queue.put({"action": "clear_all"})
                                 continue
                             
                             while not sentence_queue.empty():
-                                try:
-                                    sentence_queue.get_nowait()
-                                except queue.Empty:
-                                    break
+                                try: sentence_queue.get_nowait()
+                                except queue.Empty: break
                                     
                             sentence_queue.put(text)
                             
-                    except sr.WaitTimeoutError:
-                        continue
-                    except sr.UnknownValueError:
-                        pass 
-                    except Exception as inner_e:
-                        print(f"[Whisper Loop Error]: {inner_e}")
+                    except sr.WaitTimeoutError: continue
+                    except sr.UnknownValueError: pass 
+                    except Exception as inner_e: print(f"[Whisper Loop Error]: {inner_e}")
                         
         except Exception as outer_e:
-            print(f"⚠️ Hardware Microphone Error: {outer_e}")
-            print("🔄 Rebooting the microphone in 2 seconds...")
+            print(f"⚠️ Hardware Microphone Error: {outer_e}. Rebooting in 2s...")
             time.sleep(2)
 
 # --- 3. AI WORKER LOOP ---
 def ai_worker_loop():
     print("[DEBUG] ai_worker_loop thread has started successfully.")
-    fallback_models = [
-        'gemini-3.1-flash-lite',
-        'gemini-flash-lite-latest',
-        'gemini-3.5-flash',
-        'gemini-2.5-flash'
-    ]
+    fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
     
-    # 1. Define the dynamic path right here!
     current_dir = os.path.dirname(os.path.abspath(__file__))
     instructions_path = os.path.join(current_dir, "instructions.txt")
     
@@ -116,26 +106,32 @@ def ai_worker_loop():
         text = sentence_queue.get()
         print(f"🧠 AI is thinking about: '{text}'...")
         
-        # 2. Read the prompt using the path we just defined
         try:
             with open(instructions_path, "r") as f:
                 base_prompt = f.read()
         except FileNotFoundError:
-            print(f"❌ Error: Missing instructions file at {instructions_path}")
-            time.sleep(2)
+            print(f"❌ Error: Missing {instructions_path}")
             continue 
             
-        # Inject the live physics variables into the placeholders
-        dynamic_prompt = base_prompt.format(
-            gravity=global_gravity,
-            wind=global_wind,
-            swirl=global_wind_swirl
-        )
+        # --- STATE AWARENESS PIPELINE ---
+        obs_context = "None"
+        if selected_obstacle is not None:
+            obs_context = json.dumps(selected_obstacle)
+            
+        try:
+            dynamic_prompt = base_prompt.format(
+                gravity=global_state['gravity'],
+                wind=global_state['wind'],
+                swirl=global_state['wind_swirl'],
+                selected_obstacle_data=obs_context
+            )
+        except KeyError as e:
+            print(f"Prompt formatting error: missing {e}")
+            continue
         
         success = False
         for model_name in fallback_models:
             if success: break 
-                
             try:
                 response = client.models.generate_content(
                     model=model_name, 
@@ -145,43 +141,23 @@ def ai_worker_loop():
                         response_schema=physics_schema,
                     ),
                 )
-                
                 payload = json.loads(response.text)
                 print(f"🤖 AI Decision ({model_name}): {payload}")
                 action_queue.put(payload)
                 success = True 
-                
-            except Exception:
-                continue 
+            except Exception: continue 
         
-        if not success:
-            print("❌ All AI models failed (503/404). Check Network.")
+        if not success: print("❌ All AI models failed. Check Network.")
 
 # --- 4. LOAD CONFIGS & STATES ---
 try:
     with open("led_config.json", "r") as f:
-        config = json.load(f)
-    homography_matrix = np.array(config["homography_matrix"], dtype=np.float32)
-    
-    if "width" in config and "height" in config:
-        CANVAS_W = int(config["width"])
-        CANVAS_H = int(config["height"])
-    elif "canvas_w" in config and "canvas_h" in config:
-        CANVAS_W = int(config["canvas_w"])
-        CANVAS_H = int(config["canvas_h"])
-    elif "matrix_size" in config:
-        CANVAS_W, CANVAS_H = int(config["matrix_size"][0]), int(config["matrix_size"][1])
-    elif "dst_points" in config:
-        CANVAS_W = int(max(pt[0] for pt in config["dst_points"]))
-        CANVAS_H = int(max(pt[1] for pt in config["dst_points"]))
-    else:
-        CANVAS_W, CANVAS_H = 256, 256
-        
-    CANVAS_H += 25 
-    print(f"[DEBUG] Physical Canvas Mapped To: {CANVAS_W}x{CANVAS_H}")
-        
+        config_data = json.load(f)
+    homography_matrix = np.array(config_data["homography_matrix"], dtype=np.float32)
+    CANVAS_W = int(config_data.get("width", 256))
+    CANVAS_H = int(config_data.get("height", 256)) + 25
 except Exception as e:
-    print("Error loading led_config.json. Run calibrate.py first.")
+    print("Error loading led_config.json.")
     sys.exit()
 
 saved_states = {}
@@ -189,44 +165,44 @@ if os.path.exists("saved_states.json"):
     try:
         with open("saved_states.json", "r") as f:
             saved_states = json.load(f)
-        print(f"[DEBUG] Loaded {len(saved_states)} saved configurations.")
-    except Exception as e:
-        pass
+    except: pass
 
 # --- 5. INITIALIZE HARDWARE (Pygame & OpenCV) ---
 pygame.init()
 OS_W, OS_H = 1920, 1080
-
 try:
     screen = pygame.display.set_mode((OS_W, OS_H), pygame.FULLSCREEN, display=1)
 except:
     screen = pygame.display.set_mode((OS_W, OS_H), pygame.FULLSCREEN)
 pygame.mouse.set_visible(False)
 
-# --- 6. START BACKGROUND THREADS ---
+# --- 6. APP STATE (Unified Architecture) ---
+particles = [] 
+obstacles = [] 
+selected_obstacle = None
+cursor_x, cursor_y = -100, -100 
+rain_active = False
+
+global_state = {
+    'gravity': 0.04,
+    'wind': 0.0,
+    'wind_swirl': 0.0,
+    'rain_rate': 2,
+    'max_particles': 1000,
+    'particle_size': 1,
+    'emitter_source': 'sky',
+    'rain_color': (0, 150, 255),
+    'rain_color_2': None
+}
+
+ui_message = ""
+ui_message_timer = 0
+
+# --- 7. START THREADS ---
 threading.Thread(target=listen_loop, daemon=True).start()
 threading.Thread(target=ai_worker_loop, daemon=True).start()
 tracker = HandTracker(homography_matrix)
 tracker.start()
-
-# --- 7. APP STATE (PARTICLES & PHYSICS) ---
-particles = [] 
-obstacles = [] 
-cursor_x, cursor_y = -100, -100 
-
-rain_active = False
-global_rain_color = (0, 150, 255) 
-global_rain_color_2 = None 
-global_gravity = 0.04  
-global_wind = 0.0
-global_wind_swirl = 0.0 
-global_rain_rate = 2
-global_max_particles = 1000 # Increased default capacity
-global_particle_size = 1
-global_emitter_source = "sky" 
-
-ui_message = ""
-ui_message_timer = 0
 
 # --- 8. MAIN LOOP ---
 clock = pygame.time.Clock()
@@ -235,76 +211,56 @@ running = True
 
 while running:
     current_time = time.time() 
-    
     cursor_x, cursor_y = tracker.get_cursor()
-    #print(f"DEBUG - Finger Coordinates: X={cursor_x}, Y={cursor_y}")
+
     for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-            running = False
+        if event.type == pygame.QUIT: running = False
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
             
     screen.fill((0, 0, 0))
 
-    hovered_obstacle = None
+    # Selection Logic
+    selected_obstacle = None
     if cursor_x > 0 and cursor_y > 0:
         for obs in obstacles:
             half_s = obs['size'] / 2
             if obs['x'] - half_s <= cursor_x <= obs['x'] + half_s and obs['y'] - half_s <= cursor_y <= obs['y'] + half_s:
-                hovered_obstacle = obs
+                selected_obstacle = obs
                 break
 
     while not action_queue.empty():
         payload = action_queue.get()
         action = payload.get("action")
         
-        try:
-            if "gravity" in payload and payload["gravity"] is not None: 
-                global_gravity = float(payload["gravity"])
-            if "wind" in payload and payload["wind"] is not None: 
-                global_wind = float(payload["wind"])
-            if "wind_swirl" in payload and payload["wind_swirl"] is not None: 
-                global_wind_swirl = float(payload["wind_swirl"])
-            if "rain_rate" in payload and payload["rain_rate"] is not None: 
-                global_rain_rate = max(1, int(payload["rain_rate"])) 
-            if "max_particles" in payload and payload["max_particles"] is not None: 
-                global_max_particles = max(50, int(payload["max_particles"])) 
-            if "particle_size" in payload and payload["particle_size"] is not None: 
-                global_particle_size = max(1, int(payload["particle_size"])) 
-            if "emitter_source" in payload and payload["emitter_source"]: 
-                global_emitter_source = payload["emitter_source"]
-        except Exception as e:
-            print(f"⚠️ Ignored bad AI math: {e}")
+        # Update Globals Safely
+        if "gravity" in payload and payload["gravity"] is not None: global_state['gravity'] = float(payload["gravity"])
+        if "wind" in payload and payload["wind"] is not None: global_state['wind'] = float(payload["wind"])
+        if "wind_swirl" in payload and payload["wind_swirl"] is not None: global_state['wind_swirl'] = float(payload["wind_swirl"])
+        if "rain_rate" in payload and payload["rain_rate"] is not None: global_state['rain_rate'] = max(1, int(payload["rain_rate"])) 
+        if "max_particles" in payload and payload["max_particles"] is not None: global_state['max_particles'] = max(50, int(payload["max_particles"])) 
+        if "particle_size" in payload and payload["particle_size"] is not None: global_state['particle_size'] = max(1, int(payload["particle_size"])) 
+        if "emitter_source" in payload and payload["emitter_source"]: global_state['emitter_source'] = payload["emitter_source"]
         
+        # Action Handling
         if action in ["rain", "modify", "burst"]:
             if "color_rgb" in payload and payload["color_rgb"]:
                 c = payload["color_rgb"]
                 if sum(c) < 30: c = [0, 150, 255] 
-                global_rain_color = tuple(c)
-                global_rain_color_2 = None 
-                for p in particles:
-                    p['color'] = global_rain_color
+                global_state['rain_color'] = tuple(c)
+                global_state['rain_color_2'] = None 
+                for p in particles: p['color'] = global_state['rain_color']
                     
             if "color_rgb_2" in payload and payload["color_rgb_2"]:
-                global_rain_color_2 = tuple(payload["color_rgb_2"])
-                for p in particles:
-                    p['color'] = random.choice([global_rain_color, global_rain_color_2])
+                global_state['rain_color_2'] = tuple(payload["color_rgb_2"])
+                for p in particles: p['color'] = random.choice([global_state['rain_color'], global_state['rain_color_2']])
                 
-        if action == "ignore":
-            continue
+        if action == "ignore": continue
+        elif action == "quit": running = False
             
         elif action == "save_state":
             state_name = payload.get("state_name", "custom").lower()
             saved_states[state_name] = {
-                "rain_color": global_rain_color,
-                "rain_color_2": global_rain_color_2,
-                "gravity": global_gravity,
-                "wind": global_wind,
-                "wind_swirl": global_wind_swirl,
-                "rain_rate": global_rain_rate,
-                "max_particles": global_max_particles,
-                "particle_size": global_particle_size,
-                "emitter_source": global_emitter_source,
+                "global_state": global_state.copy(),
                 "obstacles": obstacles.copy()
             }
             try:
@@ -312,35 +268,24 @@ while running:
                     json.dump(saved_states, f, indent=4)
                 ui_message = f"Saved: '{state_name.upper()}'"
                 ui_message_timer = time.time()
-            except:
-                pass
+            except: pass
 
         elif action == "load_state":
             state_name = payload.get("state_name", "custom").lower()
             if state_name in saved_states:
                 st = saved_states[state_name]
-                global_rain_color = tuple(st.get("rain_color", (255, 255, 255)))
-                global_rain_color_2 = tuple(st["rain_color_2"]) if st.get("rain_color_2") else None
-                global_gravity = st.get("gravity", 0.04)
-                global_wind = st.get("wind", 0.0)
-                global_wind_swirl = st.get("wind_swirl", 0.0)
-                global_rain_rate = st.get("rain_rate", 2)
-                global_max_particles = st.get("max_particles", 1000)
-                global_particle_size = st.get("particle_size", 1)
-                global_emitter_source = st.get("emitter_source", "sky")
+                global_state.update(st.get("global_state", {}))
                 obstacles = st.get("obstacles", []).copy()
-                
                 rain_active = True
                 ui_message = f"Loaded: '{state_name.upper()}'"
                 ui_message_timer = time.time()
-                
                 for p in particles:
-                    if global_rain_color_2:
-                        p['color'] = random.choice([global_rain_color, global_rain_color_2])
+                    if global_state['rain_color_2']:
+                        p['color'] = random.choice([global_state['rain_color'], global_state['rain_color_2']])
                     else:
-                        p['color'] = global_rain_color
+                        p['color'] = global_state['rain_color']
             
-        elif action == "add_obstacle":
+        elif action == "create_obstacle":
             obs_color = tuple(payload["color_rgb"]) if "color_rgb" in payload else (255, 255, 255)
             obs_size = payload.get("obstacle_size", 3) 
             obstacles.append({
@@ -350,15 +295,19 @@ while running:
                 "color": obs_color
             })
             
-        elif action == "modify_obstacle":
-            if hovered_obstacle is not None:
-                if "color_rgb" in payload:
-                    hovered_obstacle['color'] = tuple(payload["color_rgb"])
-                if "obstacle_size" in payload:
-                    hovered_obstacle['size'] = payload["obstacle_size"]
+        elif action == "modify_obstacle" and selected_obstacle is not None:
+            if "color_rgb" in payload: selected_obstacle['color'] = tuple(payload["color_rgb"])
+            if "obstacle_size" in payload: selected_obstacle['size'] = payload["obstacle_size"]
             
-        elif action == "clear_obstacles":
+        elif action == "clear_all":
             obstacles.clear()
+            particles.clear()
+            rain_active = False
+
+        elif action == "remove_obstacle" and selected_obstacle is not None:
+            if selected_obstacle in obstacles:
+                obstacles.remove(selected_obstacle)
+            selected_obstacle = None
             
         elif action == "burst":
             for _ in range(30):
@@ -367,47 +316,28 @@ while running:
                     "y": cursor_y if cursor_y > 0 else CANVAS_H // 2,
                     "vx": random.uniform(-1, 1), 
                     "vy": random.uniform(-1, 1), 
-                    "color": global_rain_color
+                    "color": global_state['rain_color']
                 })
-                
-        elif action == "clear":
-            rain_active = False
-            particles.clear()
             
         elif action == "rain":
             rain_active = True
-            
-        elif action == "quit":
-            running = False
-# Bundle the global variables so the physics engine can read them
-    physics_state = {
-        'gravity': global_gravity,
-        'wind': global_wind,
-        'wind_swirl': global_wind_swirl,
-        'rain_rate': global_rain_rate,
-        'max_particles': global_max_particles,
-        'particle_size': global_particle_size,
-        'emitter_source': global_emitter_source,
-        'rain_color': global_rain_color,
-        'rain_color_2': global_rain_color_2
-    }
 
-    # 1. Spawn new particles (if raining)
+    # Run Physics using the unified global_state dict
     if rain_active:
-        spawn_particles(particles, cursor_x, cursor_y, CANVAS_W, CANVAS_H, physics_state)
+        spawn_particles(particles, cursor_x, cursor_y, CANVAS_W, CANVAS_H, global_state)
         
-    # 2. Update velocities, physics, and collisions
-    update_physics(particles, obstacles, current_time, cursor_x, cursor_y, CANVAS_W, CANVAS_H, physics_state)
+    update_physics(particles, obstacles, current_time, cursor_x, cursor_y, CANVAS_W, CANVAS_H, global_state)
+    
+    # Render
     for obs in obstacles:
         half_s = obs['size'] / 2
         rect = (int(obs['x'] - half_s), int(obs['y'] - half_s), obs['size'], obs['size'])
         pygame.draw.rect(screen, obs['color'], rect)
-        
-        if obs == hovered_obstacle:
+        if obs == selected_obstacle:
             pygame.draw.rect(screen, (255, 255, 255), rect, 1)
 
     for p in particles:
-        pygame.draw.rect(screen, p['color'], (int(p['x']), int(p['y']), global_particle_size, global_particle_size))
+        pygame.draw.rect(screen, p['color'], (int(p['x']), int(p['y']), global_state['particle_size'], global_state['particle_size']))
         
     pygame.draw.circle(screen, (255, 255, 255), (cursor_x, cursor_y), 6, 1)
 
