@@ -113,7 +113,7 @@ aruco_params = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
 # Generate Smart Grid
-GRID_MARKER_SIZE = 100 
+GRID_MARKER_SIZE = 80 
 GRID_QUIET_ZONE = 10
 GRID_INNER = GRID_MARKER_SIZE - (GRID_QUIET_ZONE * 2)
 
@@ -317,7 +317,7 @@ while running:
         elif state == "TUNE":
             screen.fill((0, 0, 0))
             
-            tune_marker_size = max(50, min(80, roi_w // 3, roi_h // 3))
+            tune_marker_size = max(80, min(80, roi_w // 3, roi_h // 3))
             tune_markers = get_corner_markers(tune_marker_size)
             
             pygame.draw.rect(screen, (0, 255, 0), (roi_x, roi_y, roi_w, roi_h), 2)
@@ -338,7 +338,7 @@ while running:
                 err_rect = err_text.get_rect(center=(led_center_x, led_center_y - 50))
                 
                 # Smaller context text
-                sub_text = font_error_sm.render("Cannot see all 4 corner markers", True, (255, 200, 200))
+                sub_text = font_error_sm.render("Cannot see all 4 corner markers", True, (255, 100, 200))
                 sub_rect = sub_text.get_rect(center=(led_center_x, led_center_y + 50))
                 
                 # Draw black backgrounds behind the text so it covers up the grid perfectly
