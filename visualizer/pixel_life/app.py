@@ -1,5 +1,9 @@
 import os
 import sys
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up two levels (waterfall_evolve -> visualizer -> 01_LEDControl)
+root_dir = os.path.dirname(os.path.dirname(current_dir)) 
+sys.path.append(root_dir)
 import json
 import time
 import queue

@@ -1,11 +1,20 @@
 # --- VERSION 6.11 (Unified Architecture) ---
+import sys
+import os
+
+# 1. FIX THE SYSTEM PATH FIRST SO PYTHON CAN FIND 'core'
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(os.path.dirname(current_dir)) 
+sys.path.append(root_dir)
+
+# 2. NOW WE CAN SAFELY IMPORT CUSTOM MODULES
 from core.vision import HandTracker
 from core import config
 from physics import spawn_particles, update_physics
+
+# 3. IMPORT EVERYTHING ELSE
 import numpy as np
 import pygame
-import sys
-import os
 import json
 import threading
 import math
@@ -13,12 +22,12 @@ import queue
 import random
 import speech_recognition as sr
 import time
+from PIL import Image  # Required for waterfall_evolve
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
-current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
 

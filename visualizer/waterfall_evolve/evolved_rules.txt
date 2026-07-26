@@ -1,0 +1,11 @@
+The current output is static and lacks the iconic visual identity of a "candy cane." To achieve this, we need to introduce a downward motion to simulate rain and shift the color palette to the characteristic red-and-white of a candy cane.
+
+- If the user asks for 'Make a candy cane rain.', you MUST set color_rgb to [255, 0, 0], gravity to 0.8, wind to 0.0, and wind_swirl to 1.5.
+color_rgb: [255, 255, 255], gravity: 0.8, wind: 1.5, wind_swirl: 1.2
+color_rgb: [255, 255, 255], gravity: 0.8, wind: 1.5, wind_swirl: 1.2
+color_rgb: [255, 255, 255], gravity: 0.8, wind: 1.5, wind_swirl: 0.5
+color_rgb: [255, 200, 0], gravity: 0.0, wind: 0.2, wind_swirl: 3.5
+- color_rgb: [255, 255, 255], gravity: 0.0, wind: 0.0, wind_swirl: 0.0
+color_rgb: [255, 0, 255], gravity: 1.2, wind: 0.8, wind_swirl: 3.5
+color_rgb: [255, 69, 0], gravity: -1.5, wind: 0.2, wind_swirl: 1.2
+color_rgb: [255, 69, 0], gravity: -1.5, wind: 0.2, wind_swirl: 3.5
