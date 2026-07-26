@@ -18,6 +18,7 @@ from physics import get_selected_node, spawn_particles, update_physics, draw_sce
 from dotenv import load_dotenv
 
 load_dotenv()
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -28,10 +29,13 @@ physics_schema = types.Schema(
         "action": types.Schema(
             type=types.Type.STRING, 
             enum=[
-                "undo", "save_state", "load_state", "clear_all", "quit", "ignore",
+                # Universal System Commands
+                "undo", "save_state", "load_state", "list_states", "close_menu", "clear_all", "quit", "ignore",
+                # Pixel Life Specific
                 "create_node", "modify_node", "remove_node", "set_finger", "set_global"
             ]
         ),
+        "state_name": types.Schema(type=types.Type.STRING),
         "shape": types.Schema(type=types.Type.STRING, enum=["square", "circle", "rectangle", "line", "vertical_line", "triangle"]),
         "size": types.Schema(type=types.Type.INTEGER),
         "color": types.Schema(type=types.Type.ARRAY, items=types.Schema(type=types.Type.INTEGER)),
@@ -120,12 +124,15 @@ def ai_worker_loop():
             clean_node = {k: v for k, v in selected_node.items() if k not in ['last_emit_time', 'animation_timer']}
             node_context = json.dumps(clean_node)
             
+        states_list = ", ".join(saved_states.keys()) if saved_states else "None"
+            
         try:
             dynamic_prompt = base_prompt.format(
                 gravity_x=global_state['gravity_x'],
                 gravity_y=global_state['gravity_y'],
                 node_count=len(nodes),
-                selected_node_data=node_context
+                selected_node_data=node_context,
+                saved_states_list=states_list
             )
         except KeyError as e:
             print(f"Prompt formatting error: missing {e}")
@@ -151,7 +158,7 @@ def ai_worker_loop():
         
         if not success: print("❌ All AI models failed. Check Network.")
 
-# --- 4. LOAD CONFIG & HARDWARE ---
+# --- 4. LOAD CONFIG & SAVED STATES ---
 try:
     with open("led_config.json", "r") as f:
         led_cfg = json.load(f)
@@ -161,6 +168,15 @@ try:
 except:
     print("Error loading led_config.json.")
     sys.exit()
+
+saves_path = os.path.join(current_dir, "saves_pixel_life.json")
+saved_states = {}
+if os.path.exists(saves_path):
+    try:
+        with open(saves_path, "r") as f:
+            saved_states = json.load(f)
+        print(f"[DEBUG] Loaded {len(saved_states)} saved configurations.")
+    except Exception: pass
 
 pygame.init()
 OS_W, OS_H = 1920, 1080
@@ -190,6 +206,10 @@ global_state = {
     'gravity_y': 0.0
 }
 
+ui_message = ""
+ui_message_timer = 0
+show_saved_states = False  # Flag for saved worlds UI overlay
+
 # --- 6. START THREADS ---
 threading.Thread(target=listen_loop, daemon=True).start()
 threading.Thread(target=ai_worker_loop, daemon=True).start()
@@ -198,6 +218,8 @@ tracker.start()
 
 # --- 7. MAIN GAME LOOP ---
 clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 28)
+font_title = pygame.font.SysFont(None, 36)
 running = True
 
 while running:
@@ -221,6 +243,44 @@ while running:
         elif action == "clear_all":
             nodes.clear()
             particles.clear()
+
+        elif action == "list_states":
+            show_saved_states = True
+
+        elif action == "close_menu":
+            show_saved_states = False
+
+        elif action == "save_state":
+            state_name = payload.get("state_name", "custom").lower()
+            clean_finger = {k: v for k, v in finger_state.items() if k not in ['x', 'y', 'last_emit_time']}
+            saved_states[state_name] = {
+                "global_state": global_state.copy(),
+                "finger_state": clean_finger,
+                "nodes": json.loads(json.dumps(nodes))
+            }
+            try:
+                with open(saves_path, "w") as f:
+                    json.dump(saved_states, f, indent=4)
+                ui_message = f"Saved: '{state_name.upper()}'"
+                ui_message_timer = time.time()
+            except Exception as e:
+                print(f"Error saving state: {e}")
+
+        elif action == "load_state":
+            state_name = payload.get("state_name", "custom").lower()
+            if state_name in saved_states:
+                st = saved_states[state_name]
+                global_state.update(st.get("global_state", {}))
+                if "finger_state" in st:
+                    finger_state.update(st["finger_state"])
+                nodes = json.loads(json.dumps(st.get("nodes", [])))
+                particles.clear()
+                ui_message = f"Loaded: '{state_name.upper()}'"
+                ui_message_timer = time.time()
+                show_saved_states = False  # Auto-close menu when state loads
+            else:
+                ui_message = f"Not Found: '{state_name.upper()}'"
+                ui_message_timer = time.time()
             
         elif action == "remove_node" and selected_node is not None:
             if selected_node in nodes:
@@ -282,14 +342,47 @@ while running:
     spawn_particles(particles, nodes, finger_state, current_time)
     update_physics(particles, nodes, finger_state, global_state, CANVAS_W, CANVAS_H)
 
-    # Render
+    # Render Canvas
     screen.fill((0, 0, 0)) 
     draw_scene(screen, particles, nodes, selected_node, current_time)
     pygame.draw.circle(screen, (100, 100, 100), (cursor_x, cursor_y), 4, 1)
+
+    # Render UI Notification Banner
+    if time.time() - ui_message_timer < 4.0: 
+        msg_text = font.render(ui_message, True, (0, 255, 255)) 
+        screen.blit(msg_text, (10, 40))
+
+    # --- RENDER SAVED WORLDS MENU OVERLAY ---
+    if show_saved_states:
+        overlay = pygame.Surface((400, 320), pygame.SRCALPHA)
+        overlay.fill((15, 15, 25, 220)) # Dark transparent box
+        pygame.draw.rect(overlay, (0, 200, 255), (0, 0, 400, 320), 2, border_radius=8)
+
+        # Title Header
+        title_surf = font_title.render("SAVED WORLDS", True, (0, 255, 255))
+        overlay.blit(title_surf, (20, 15))
+
+        # List saved names
+        if saved_states:
+            y_offset = 60
+            for name in list(saved_states.keys())[:7]: # Limit to 7 items for clean fit
+                item_surf = font.render(f"• {name.upper()}", True, (255, 255, 255))
+                overlay.blit(item_surf, (30, y_offset))
+                y_offset += 30
+        else:
+            empty_surf = font.render("(No saved states found)", True, (150, 150, 150))
+            overlay.blit(empty_surf, (30, 60))
+
+        # Footer Prompt
+        footer_surf = font.render("Say 'Load [Name]' or 'Close'", True, (180, 180, 180))
+        overlay.blit(footer_surf, (20, 280))
+
+        # Place menu at top-left to ensure it hits the physical LED wall
+        screen.blit(overlay, (20, 80))
 
     pygame.display.flip()
     clock.tick(60)
 
 tracker.stop()
 pygame.quit()
-sys.exit()
+os._exit(0) # Force OS-level termination to kill hanging audio/camera threads

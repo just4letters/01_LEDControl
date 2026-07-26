@@ -28,9 +28,9 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 calib_schema = types.Schema(
     type=types.Type.OBJECT,
     properties={
-        "action": types.Schema(type=types.Type.STRING, enum=["confirm", "move_edge", "quit", "ignore"]),
+        "action": types.Schema(type=types.Type.STRING, enum=["confirm", "move_edge", "resize_markers", "quit", "ignore"]),
         "edge": types.Schema(type=types.Type.STRING, enum=["top", "bottom", "left", "right"]),
-        "direction": types.Schema(type=types.Type.STRING, enum=["up", "down", "left", "right"]),
+        "direction": types.Schema(type=types.Type.STRING, enum=["up", "down", "left", "right", "bigger", "smaller", "double", "half"]),
         "amount": types.Schema(type=types.Type.INTEGER)
     },
     required=["action"]
@@ -97,7 +97,6 @@ pygame.init()
 pygame.key.set_repeat(250, 50) 
 pygame.font.init()
 
-# Setup fonts for the error message
 font_error_lg = pygame.font.SysFont(None, 120)
 font_error_sm = pygame.font.SysFont(None, 80)
 
@@ -112,31 +111,36 @@ aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_1000)
 aruco_params = cv2.aruco.DetectorParameters()
 detector = cv2.aruco.ArucoDetector(aruco_dict, aruco_params)
 
-# Generate Smart Grid
-GRID_MARKER_SIZE = 80 
-GRID_QUIET_ZONE = 10
-GRID_INNER = GRID_MARKER_SIZE - (GRID_QUIET_ZONE * 2)
+# --- DYNAMIC GRID GENERATOR ---
+def build_grid_surface(marker_size):
+    quiet_zone = 10
+    inner = max(10, marker_size - (quiet_zone * 2))
+    
+    surf = pygame.Surface((OS_W, OS_H))
+    surf.fill((100, 100, 100))
+    m_map = {}
+    c_id = 10
+    
+    for y in range(0, OS_H, marker_size):
+        for x in range(0, OS_W, marker_size):
+            if c_id < 1000:
+                img = cv2.aruco.generateImageMarker(aruco_dict, c_id, inner)
+                img[img == 255] = 100
+                img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                s = pygame.surfarray.make_surface(img.swapaxes(0, 1))
+                surf.blit(s, (x + quiet_zone, y + quiet_zone))
+                m_map[c_id] = {"x": x, "y": y}
+                c_id += 1
+                
+    return surf, m_map
 
-bg_surface = pygame.Surface((OS_W, OS_H))
-bg_surface.fill((100, 100, 100))
+# Initial build
+current_marker_size = 80 
+bg_surface, marker_map = build_grid_surface(current_marker_size)
 
-marker_map = {} 
-current_id = 10 
-
-for y in range(0, OS_H, GRID_MARKER_SIZE):
-    for x in range(0, OS_W, GRID_MARKER_SIZE):
-        if current_id < 1000:
-            img = cv2.aruco.generateImageMarker(aruco_dict, current_id, GRID_INNER)
-            img[img == 255] = 100
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            surf = pygame.surfarray.make_surface(img.swapaxes(0, 1))
-            bg_surface.blit(surf, (x + GRID_QUIET_ZONE, y + GRID_QUIET_ZONE))
-            marker_map[current_id] = {"x": x, "y": y}
-            current_id += 1
-            
 TUNE_QUIET_ZONE = 10
 def get_corner_markers(size):
-    inner = size - (TUNE_QUIET_ZONE * 2)
+    inner = max(10, size - (TUNE_QUIET_ZONE * 2)) 
     markers = []
     for i in range(4):
         img = cv2.aruco.generateImageMarker(aruco_dict, i, inner)
@@ -155,7 +159,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_HEIGHT)
 cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
 
 roi_x, roi_y, roi_w, roi_h = 0, 0, 256, 256 
-error_display_timer = 0  # This tracks how long to show the camera error on the LED wall
+error_display_timer = 0  
 
 # --- START AI THREADS ---
 threading.Thread(target=listen_loop, daemon=True).start()
@@ -182,7 +186,6 @@ while running:
                 print("Say 'Move top down 5 pixels', or use WASD/Arrows.")
                 print("Say 'Looks Good' or press [ENTER] to save and launch system.")
             elif state == "TUNE":
-                # Faking the ENTER key press to trigger the save routine
                 pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
                 
         elif action == "move_edge" and state == "TUNE":
@@ -202,6 +205,26 @@ while running:
             elif edge == "right":
                 if direction == "left": roi_w -= amt
                 elif direction == "right": roi_w += amt
+                
+        # Now unlocked for BOTH GRID and TUNE phases!
+        elif action == "resize_markers":
+            amt = payload.get("amount", 10)
+            direction = payload.get("direction", "bigger")
+            
+            if direction == "smaller":
+                current_marker_size = max(40, current_marker_size - amt)
+            elif direction == "bigger":
+                current_marker_size = min(500, current_marker_size + amt)
+            elif direction == "double":
+                current_marker_size = min(500, current_marker_size * 2)
+            elif direction == "half":
+                current_marker_size = max(40, current_marker_size // 2)
+                
+            # If we are in Phase 1, rebuild the grid dynamically
+            if state == "GRID":
+                bg_surface, marker_map = build_grid_surface(current_marker_size)
+                
+            print(f"\n[AI] Set marker size to: {current_marker_size} (Action: {direction})")
 
     # --- PROCESS KEYBOARD EVENTS ---
     for event in pygame.event.get():
@@ -209,6 +232,14 @@ while running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                 running = False
+                
+            # Global Keyboard Resizing
+            if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
+                current_marker_size = min(500, current_marker_size + 10)
+                if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
+            elif event.key == pygame.K_MINUS:
+                current_marker_size = max(40, current_marker_size - 10)
+                if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
                 
             if state == "GRID" and event.key == pygame.K_SPACE:
                 state = "TUNE"
@@ -244,8 +275,7 @@ while running:
                                 center_y = np.mean(corners[idx][0][:, 1])
                                 cam_pts.append([center_x, center_y])
                             
-                            tune_marker_size = max(50, min(80, roi_w // 3, roi_h // 3))
-                            half = tune_marker_size / 2
+                            half = current_marker_size / 2
                             
                             pygame_pts = [
                                 [roi_x + half, roi_y + half],
@@ -261,27 +291,22 @@ while running:
                                 "roi_w": roi_w, "roi_h": roi_h,
                                 "homography_matrix": matrix.tolist()
                             }
-                            # Save back to root directory
                             config_path = os.path.join(parent_dir, "led_config.json")
                             with open(config_path, "w") as f:
                                 json.dump(save_data, f, indent=4)
                                 
                             print(f"\n✅ SUCCESS! Bounds ({roi_w}x{roi_h}) saved.")
                             
-                            # CLEANUP BEFORE LAUNCHING MAIN
                             cap.release()
                             cv2.destroyAllWindows()
                             pygame.quit()
                             
                             print("🚀 Auto-launching main.py...")
                             main_path = os.path.join(parent_dir, "main.py")
-                            
-                            # Use Popen so this script fully detaches and dies
                             subprocess.Popen([sys.executable, main_path], cwd=parent_dir)
                             sys.exit(0)
                         else:
                             print("\nError: Camera cannot see all 4 corner markers clearly. Adjust the camera and say 'looks good' again.")
-                            # Set the timer to display the error on the LED wall for 5 seconds
                             error_display_timer = time.time() + 5.0
 
                 roi_w, roi_h = max(100, roi_w), max(100, roi_h)
@@ -306,8 +331,8 @@ while running:
             if len(valid_ids) > 0:
                 min_x = min([marker_map[i]["x"] for i in valid_ids])
                 min_y = min([marker_map[i]["y"] for i in valid_ids])
-                max_x = max([marker_map[i]["x"] + GRID_MARKER_SIZE for i in valid_ids])
-                max_y = max([marker_map[i]["y"] + GRID_MARKER_SIZE for i in valid_ids])
+                max_x = max([marker_map[i]["x"] + current_marker_size for i in valid_ids])
+                max_y = max([marker_map[i]["y"] + current_marker_size for i in valid_ids])
                 
                 roi_x, roi_y = min_x, min_y
                 roi_w, roi_h = max_x - min_x, max_y - min_y
@@ -317,35 +342,28 @@ while running:
         elif state == "TUNE":
             screen.fill((0, 0, 0))
             
-            tune_marker_size = max(80, min(80, roi_w // 3, roi_h // 3))
-            tune_markers = get_corner_markers(tune_marker_size)
+            tune_markers = get_corner_markers(current_marker_size)
             
             pygame.draw.rect(screen, (0, 255, 0), (roi_x, roi_y, roi_w, roi_h), 2)
             
             screen.blit(tune_markers[0], (roi_x, roi_y))
-            screen.blit(tune_markers[1], (roi_x + roi_w - tune_marker_size, roi_y))
-            screen.blit(tune_markers[2], (roi_x + roi_w - tune_marker_size, roi_y + roi_h - tune_marker_size))
-            screen.blit(tune_markers[3], (roi_x, roi_y + roi_h - tune_marker_size))
+            screen.blit(tune_markers[1], (roi_x + roi_w - current_marker_size, roi_y))
+            screen.blit(tune_markers[2], (roi_x + roi_w - current_marker_size, roi_y + roi_h - current_marker_size))
+            screen.blit(tune_markers[3], (roi_x, roi_y + roi_h - current_marker_size))
             
-            # Draw the Camera Error if the timer is active
             if time.time() < error_display_timer:
-                # Calculate the dead-center of your physical LED area
                 led_center_x = roi_x + (roi_w // 2)
                 led_center_y = roi_y + (roi_h // 2)
                 
-                # Big red warning text
                 err_text = font_error_lg.render("ERROR: ADJUST CAMERA", True, (255, 50, 50))
                 err_rect = err_text.get_rect(center=(led_center_x, led_center_y - 50))
                 
-                # Smaller context text
                 sub_text = font_error_sm.render("Cannot see all 4 corner markers", True, (255, 100, 200))
                 sub_rect = sub_text.get_rect(center=(led_center_x, led_center_y + 50))
                 
-                # Draw black backgrounds behind the text so it covers up the grid perfectly
                 pygame.draw.rect(screen, (0, 0, 0), err_rect.inflate(60, 40))
                 pygame.draw.rect(screen, (0, 0, 0), sub_rect.inflate(60, 40))
                 
-                # Draw the actual text
                 screen.blit(err_text, err_rect)
                 screen.blit(sub_text, sub_rect)
             
@@ -362,11 +380,21 @@ while running:
             
         cv2.imshow("Webcam View", display_frame)
         
+        # --- OpenCV Key Capture (Works when OpenCV window is focused) ---
         key = cv2.waitKeyEx(1)
         if key != -1:
             if key == 27 or key == ord('q'): running = False
             elif key == 32 and state == "GRID": pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
             elif key == 13 and state == "TUNE": pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+            
+            # Global OpenCV Window Resizing Controls
+            elif key == ord('=') or key == ord('+'):
+                current_marker_size = min(500, current_marker_size + 10)
+                if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
+            elif key == ord('-'):
+                current_marker_size = max(40, current_marker_size - 10)
+                if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
+                    
             elif state == "TUNE":
                 step = 10 if key in [ord('W'), ord('S'), ord('A'), ord('D')] else 1
                 if key in [ord('w'), ord('W')]: roi_y -= step; roi_h += step 

@@ -18,8 +18,10 @@ from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
+
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 physics_schema = types.Schema(
     type=types.Type.OBJECT,
@@ -118,12 +120,15 @@ def ai_worker_loop():
         if selected_obstacle is not None:
             obs_context = json.dumps(selected_obstacle)
             
+        states_list = ", ".join(saved_states.keys()) if saved_states else "None"
+            
         try:
             dynamic_prompt = base_prompt.format(
                 gravity=global_state['gravity'],
                 wind=global_state['wind'],
                 swirl=global_state['wind_swirl'],
-                selected_obstacle_data=obs_context
+                selected_obstacle_data=obs_context,
+                saved_states_list=states_list
             )
         except KeyError as e:
             print(f"Prompt formatting error: missing {e}")
@@ -160,10 +165,11 @@ except Exception as e:
     print("Error loading led_config.json.")
     sys.exit()
 
+saves_path = os.path.join(current_dir, "saves_waterfall.json")
 saved_states = {}
-if os.path.exists("saved_states.json"):
+if os.path.exists(saves_path):
     try:
-        with open("saved_states.json", "r") as f:
+        with open(saves_path, "r") as f:
             saved_states = json.load(f)
     except: pass
 
@@ -264,7 +270,7 @@ while running:
                 "obstacles": obstacles.copy()
             }
             try:
-                with open("saved_states.json", "w") as f:
+                with open(saves_path, "w") as f:
                     json.dump(saved_states, f, indent=4)
                 ui_message = f"Saved: '{state_name.upper()}'"
                 ui_message_timer = time.time()
@@ -352,4 +358,4 @@ while running:
 
 tracker.stop()
 pygame.quit()
-sys.exit()
+os._exit(0) # Force OS-level termination to kill hanging audio/camera threads

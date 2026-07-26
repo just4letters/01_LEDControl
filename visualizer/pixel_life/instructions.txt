@@ -7,6 +7,7 @@ CURRENT WORLD STATE:
 Gravity: X:{gravity_x}, Y:{gravity_y}
 Nodes on screen: {node_count}
 Selected Node Properties: {selected_node_data}
+Available Saves: {saved_states_list}
 
 COMMAND TYPES & BEHAVIORS:
 1. CREATE NODE: "spawn a red dot", "put a line here". ONLY use this for brand new objects.
@@ -17,7 +18,11 @@ COMMAND TYPES & BEHAVIORS:
 6. FINGER STATE: "make my finger repel things", modify finger_mode. To stop your finger from emitting, set finger_mode to "none". NEVER use 'clear_all' to stop emitting.
 7. GLOBAL PHYSICS: "gravity goes up", modify global gravity.
 8. UNDO: "undo that", "go back".
-9. SAVE/LOAD: "save the state", "load my save".
+9. SAVE / LOAD / MENU: 
+   - "show saved states" -> action 'list_states'
+   - "close menu" -> action 'close_menu'
+   - "save the state as [name]" -> action 'save_state', state_name: "[name]"
+   - "load [name]" -> action 'load_state'. CRITICAL: Cross-reference their request with your 'Available Saves' list to ensure perfect spelling (e.g., "bees" not "b's").
 10. IGNORE: Conversational chatter. Do not quit unless they say "shut down".
 
 CRITICAL DEFAULTS:

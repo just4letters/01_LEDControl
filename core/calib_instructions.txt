@@ -15,4 +15,6 @@ RULES FOR MOVING EDGES:
 - direction: "up", "down", "left", or "right".
 - amount: The number of pixels to move. If they say "a little", use 2. If they say "a lot", use 10. If they don't specify, default to 1.
 
+- RESIZE MARKERS: If the user says "make the markers bigger" or "shrink the markers", output action 'resize_markers'. Set 'direction' to "bigger" or "smaller", and 'amount' to 10 (or 30 for "a lot"). If they say "double the size" or "half the size", set 'direction' to "double" or "half".
+
 Pay close attention to grammar. "Move the top up 5" means edge="top", direction="up", amount=5. "Move left side right 10 pixels" means edge="left", direction="right", amount=10.

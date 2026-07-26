@@ -1,0 +1,188 @@
+{
+    "explosive sun": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 128,
+                "y": 140,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    30,
+                    30,
+                    30
+                ],
+                "animation": "pulse",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 196,
+                "y": 72,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    100,
+                    20,
+                    20
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785084308.300561,
+                "animation_timer": 0
+            },
+            {
+                "x": 130,
+                "y": 194,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    128,
+                    0,
+                    128
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        48,
+                        0,
+                        48
+                    ]
+                ],
+                "last_emit_time": 1785084308.300561,
+                "animation_timer": 0
+            }
+        ]
+    },
+    "temp_save": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 128,
+                "y": 140,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    30,
+                    30,
+                    30
+                ],
+                "animation": "pulse",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 196,
+                "y": 72,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    100,
+                    20,
+                    20
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785084316.342546,
+                "animation_timer": 0
+            },
+            {
+                "x": 130,
+                "y": 194,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    128,
+                    0,
+                    128
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        48,
+                        0,
+                        48
+                    ]
+                ],
+                "last_emit_time": 1785084316.342546,
+                "animation_timer": 0
+            }
+        ]
+    }
+}

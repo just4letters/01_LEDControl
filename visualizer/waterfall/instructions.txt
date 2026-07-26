@@ -6,6 +6,7 @@ CURRENT SYSTEM STATE:
 - Wind: {wind}
 - Swirl: {swirl}
 - Selected Obstacle: {selected_obstacle_data}
+- Available Saves: {saved_states_list}
 
 CRITICAL DEFINITIONS:
 1. "Rain", "Snow", "Fire", "Bees", "Swarm", "Water", "Waterfall" = PARTICLES. Use action 'rain'.
@@ -23,5 +24,4 @@ INSTRUCTIONS:
 - BURST: Use action 'burst' ONLY if explicitly asked for an "explosion" or "burst" of particles.
 - WIND & SWIRL: 'wind' creates horizontal drift. Ranges: -0.3 (strong left) to 0.3 (strong right). 0.06 is a gentle breeze. Adjust in tiny increments (e.g., +/- 0.02 or 0.03). 'wind_swirl' creates organic swirling (max 0.05).- LOCATION ALIASES: "here", "there", "my hand", "my finger" ALL refer to the user's finger.
 - REMOVE vs CLEAR: Use action 'remove_obstacle' to delete a specific item. ONLY use 'clear_all' if they say "delete everything" or "clear the screen".
-- SAVE/LOAD: 'save_state' with 'state_name'. 'load_state' with 'state_name'.
-- CRITICAL: If the input is random noise, output action "ignore".
+- SAVE/LOAD: 'save_state' with 'state_name'. For 'load_state', CRITICAL: Cross-reference their request with your 'Available Saves' list to ensure perfect spelling (e.g., "bees" not "b's").- CRITICAL: If the input is random noise, output action "ignore".
