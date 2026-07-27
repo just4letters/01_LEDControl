@@ -210,7 +210,7 @@ def evolution_worker_loop():
             request = task.get("request")
             print(f"👀 Vision Critic is analyzing frames for: '{request}'...")
             
-            try:
+            try: # <-- This try block was missing its except!
                 # Load the captured frames
                 img0 = Image.open(os.path.join(frames_dir, "frame_0.jpg"))
                 img1 = Image.open(os.path.join(frames_dir, "frame_1.jpg"))
@@ -225,25 +225,24 @@ You are looking at a TIME-LAPSE sequence of 3 frames.
 - Frame 1 is time 0.5s. 
 - Frame 2 is time 1.0s.
 
-HOW TO READ MOTION:
-You MUST cross-reference and compare the positions of the pixels across all 3 frames to calculate velocity.
-- If the dots are in the exact same locations in all 3 frames, the system is completely STATIC (gravity/wind are 0).
-- If the dots shift downward progressively from Frame 0 -> 1 -> 2, gravity is active.
-- If the dots shift horizontally, wind is active.
-- If the dots are a blurry, chaotic mess between frames, wind_swirl is far too high.
+CRITICAL CONTEXT & HOW TO READ MOTION:
+- Canvas Size: {CANVAS_W} width x {CANVAS_H} height pixels.
+- The engine is EXTREMELY sensitive. "Normal" falling rain has a gravity of 0.03. 
 
 CRITICAL LIMITATIONS: 
-Your engine ONLY supports the exact parameters below. 
-- color_rgb: [R, G, B] (You can only pick ONE color. You cannot do multi-color yet).
-- gravity: (Float. Negative goes up, positive goes down. Range: -2.0 to 2.0)
-- wind: (Float. Negative goes left, positive goes right. Range: -2.0 to 2.0)
-- wind_swirl: (Float. Adds sine-wave turbulence. Range: 0.0 to 5.0)
+Your engine operates on a HYPER-MICRO SCALE. Keep variables incredibly small.
+- color_rgb: (list of 3 ints)
+- color_rgb_2: (OPTIONAL list of 3 ints for secondary color stripes)
+- gravity: (Float. Negative goes up, positive goes down. STRICT RANGE: -0.05 to 0.05)
+- wind: (Float. Negative goes left, positive goes right. STRICT RANGE: -0.05 to 0.05)
+- wind_swirl: (Float. Adds sine-wave turbulence. STRICT RANGE: 0.0 to 0.5)
 
-DO NOT write explanations, apologies, or conversational text. Write ONLY the rule.
-Format your output exactly like this:
-- If the user asks for '{request}', you MUST set color_rgb to [R,G,B], gravity to X, wind to Y, and wind_swirl to Z.
+Figure out the best settings to make the visual output perfectly represent "{request}".
+Respond ONLY with a valid JSON object containing those keys. Do NOT include markdown blocks, explanations, or backticks.
+Example:
+{{"color_rgb": [255, 0, 0], "color_rgb_2": [255, 255, 255], "gravity": 0.02, "wind": 0.01, "wind_swirl": 0.1}}
 """
-                # 2. RUN THE FALLBACK LOOP
+                # 2. RUN THE FALLBACK LOOP WITH JSON PARSING
                 success = False
                 new_rule = ""
                 
@@ -254,13 +253,27 @@ Format your output exactly like this:
                             model=model_name,
                             contents=[vision_prompt, img0, img1, img2]
                         )
-                        new_rule = response.text.strip()
+                        
+                        raw_text = response.text.strip().replace("```json", "").replace("```", "")
+                        data = json.loads(raw_text)
+                        
+                        # Dynamically build the rule sentence
+                        rule_text = f"- If the user asks for '{request}', you MUST set color_rgb to {data.get('color_rgb', [255,255,255])}, gravity to {data.get('gravity', 1.0)}, wind to {data.get('wind', 0.0)}, and wind_swirl to {data.get('wind_swirl', 0.0)}"
+                        
+                        # Add the secondary color to the rule only if the AI decided to use it
+                        if "color_rgb_2" in data:
+                            rule_text += f", and color_rgb_2 to {data['color_rgb_2']}."
+                        else:
+                            rule_text += "."
+                            
+                        new_rule = rule_text
+                        
                         print(f"✅ Vision Critic succeeded using {model_name}")
                         success = True
                     except Exception as e:
                         print(f"⚠️ Vision Critic failed with {model_name}: {e}")
                         continue
-                
+                        
                 if not success:
                     raise Exception("All Vision AI fallback models failed.")
                     
@@ -276,6 +289,7 @@ Format your output exactly like this:
                 # Put the original request back into the standard AI queue to trigger a redraw
                 sentence_queue.put(request)
                 
+            # <-- This is the block that got accidentally deleted!
             except Exception as e:
                 print(f"❌ Vision Critic Error: {e}")
                 action_queue.put({"action": "ui_notify", "message": "Evolution Failed."})

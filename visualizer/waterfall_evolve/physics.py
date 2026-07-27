@@ -5,8 +5,8 @@ def spawn_particles(particles, cursor_x, cursor_y, canvas_w, canvas_h, state):
     """Handles the math for spawning new particles based on the current environment state."""
     for _ in range(state['rain_rate']):
         if state['gravity'] == 0.0 or state['wind_swirl'] > 0.0:
-            base_vx = random.uniform(-1.0, 1.0)
-            base_vy = random.uniform(-1.0, 1.0)
+            base_vx = random.uniform(-0.5, 0.5)
+            base_vy = random.uniform(-0.5, 0.5)
             spawn_offscreen_y = random.randint(0, canvas_h) 
         else:
             base_vx = random.uniform(-0.1, 0.1) + state['wind']
@@ -41,12 +41,12 @@ def update_physics(particles, obstacles, current_time, cursor_x, cursor_y, canva
         p['vy'] += state['gravity'] 
         p['vx'] += (state['wind'] * 0.1) # Scaled down for intuitive AI prompting
         
-        # Swirl Physics
+        # Swirl Physics (Scaled down by 0.2 to prevent violent acceleration)
         if state['wind_swirl'] > 0:
             pulse_x = math.sin(current_time * 3.0 + p['y'] * 0.05) 
             pulse_y = math.cos(current_time * 2.5 + p['x'] * 0.05)
-            p['vx'] += pulse_x * state['wind_swirl']
-            p['vy'] += pulse_y * state['wind_swirl']
+            p['vx'] += pulse_x * (state['wind_swirl'] * 0.2)
+            p['vy'] += pulse_y * (state['wind_swirl'] * 0.2)
         
         # Finger Repulsion Physics
         if cursor_x > 0 and cursor_y > 0 and state['emitter_source'] != "finger":
@@ -57,9 +57,18 @@ def update_physics(particles, obstacles, current_time, cursor_x, cursor_y, canva
                 p['vx'] += (dx / dist) * force * 1.0 
                 p['vy'] += (dy / dist) * force * 1.0
                 
-        # Friction & Velocity Application
+        # Friction
         p['vx'] *= 0.99 
         p['vy'] *= 0.99
+        
+        # --- TERMINAL VELOCITY HARDCAP ---
+        # Adjust max_speed: 1.5 to 2.0 works best for an LED matrix
+        max_speed = 1.5 
+        p['vx'] = max(-max_speed, min(p['vx'], max_speed))
+        p['vy'] = max(-max_speed, min(p['vy'], max_speed))
+        # ---------------------------------
+
+        # Apply velocity to position
         p['x'] += p['vx']
         p['y'] += p['vy']
         
@@ -94,7 +103,7 @@ def update_physics(particles, obstacles, current_time, cursor_x, cursor_y, canva
                     p['vy'] = abs(p['vy']) * 0.8 + 0.5
                     p['y'] = cy + half_s
         
-        # Boundary Logic (Wrap around for zero-gravity, kill for normal gravity)
+        # Boundary Logic (Wrap around for zero-gravity/swirl, kill for normal rain)
         if state['gravity'] == 0.0 or state['wind_swirl'] > 0.0:
             if p['x'] < 0: p['x'] = canvas_w
             elif p['x'] > canvas_w: p['x'] = 0
