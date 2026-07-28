@@ -9,6 +9,7 @@ import time
 import queue
 import random
 import threading
+import math
 import numpy as np
 import pygame
 import speech_recognition as sr
@@ -34,7 +35,7 @@ physics_schema = types.Schema(
             type=types.Type.STRING, 
             enum=[
                 # Universal System Commands
-                "undo", "save_state", "load_state", "list_states", "close_menu", "clear_all", "quit", "ignore",
+                "undo", "save_state", "load_state", "list_states", "close_menu", "clear_all", "quit", "ignore", "drop_node",
                 # Pixel Life Specific
                 "create_node", "modify_node", "remove_node", "set_finger", "set_global"
             ]
@@ -69,7 +70,7 @@ action_queue = queue.Queue()
 def listen_loop():
     print("[DEBUG] listen_loop thread started.")
     recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 600 
+    recognizer.energy_threshold = 6000 
     
     while True:
         try:
@@ -89,6 +90,9 @@ def listen_loop():
                                 return 
                             if "clear the screen" in text_lower:
                                 action_queue.put({"action": "clear_all"})
+                                continue
+                            if "looks good" in text_lower or "drop it" in text_lower or "place it" in text_lower:
+                                action_queue.put({"action": "drop_node"})
                                 continue
                             
                             while not sentence_queue.empty():
@@ -194,6 +198,10 @@ pygame.mouse.set_visible(False)
 nodes = []
 particles = []
 selected_node = None
+# New grab/hover state variables
+grabbed_node = None
+current_hovered = None
+hover_start_time = 0
 
 finger_state = {
     'x': -100, 'y': -100, 
@@ -236,7 +244,44 @@ while running:
         if event.type == pygame.QUIT: running = False
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE: running = False
             
-    selected_node = get_selected_node(cursor_x, cursor_y, nodes, selected_node)
+    # Pass `current_hovered` for stickiness so your hand can shake slightly without losing the timer
+    candidate_node = get_selected_node(cursor_x, cursor_y, nodes, current_hovered)
+
+    if grabbed_node is not None:
+        # 1. Force the grabbed node to snap to your finger
+        grabbed_node['x'] = cursor_x
+        grabbed_node['y'] = cursor_y
+        selected_node = grabbed_node  # Keep it actively selected while dragging
+    else:
+        # 2. Hover, Tap, and Grab Logic
+        if candidate_node != current_hovered:
+            # The cursor moved to a new node OR left a node
+            if current_hovered is not None:
+                hover_duration = current_time - hover_start_time
+                
+                # If they hovered for less than 3 seconds and moved away, it's a TAP
+                if 0.05 <= hover_duration < 3.0:
+                    if selected_node == current_hovered:
+                        selected_node = None
+                        ui_message = "Deselected"
+                    else:
+                        selected_node = current_hovered
+                        ui_message = "Selected"
+                    ui_message_timer = time.time()
+                    
+            # Start tracking the new hover target (even if it's None)
+            current_hovered = candidate_node
+            hover_start_time = current_time
+            
+        elif current_hovered is not None:
+            # 3. Still hovering over the same node
+            hover_duration = current_time - hover_start_time
+            if hover_duration >= 3.0:
+                grabbed_node = current_hovered
+                selected_node = current_hovered
+                ui_message = "Node Grabbed!"
+                ui_message_timer = time.time()
+                current_hovered = None # Clear hover state so dropping it doesn't trigger a tap
 
     while not action_queue.empty():
         payload = action_queue.get()
@@ -247,6 +292,13 @@ while running:
         elif action == "clear_all":
             nodes.clear()
             particles.clear()
+
+        elif action == "drop_node":
+            if grabbed_node is not None:
+                ui_message = "Node Placed!"
+                ui_message_timer = time.time()
+                grabbed_node = None
+                current_hovered = None
 
         elif action == "list_states":
             show_saved_states = True
@@ -309,7 +361,7 @@ while running:
             emit_rate = payload.get("emit_rate", 0)
             if len(emit_cols) > 0 and emit_rate == 0: emit_rate = 15
                 
-            nodes.append({
+            new_node = {
                 "x": targ_x, "y": targ_y,
                 "size": payload.get("size", 1), 
                 "shape": payload.get("shape", "square"), 
@@ -322,7 +374,10 @@ while running:
                 "emit_size": payload.get("emit_size", 1),
                 "emit_colors": emit_cols,
                 "last_emit_time": 0, "animation_timer": 0
-            })
+            }
+            nodes.append(new_node)
+            grabbed_node = new_node  # Instantly attach new shape to finger
+            selected_node = new_node
             
         elif action == "modify_node" and selected_node is not None:
             if "size" in payload: selected_node['size'] = payload['size']
@@ -350,6 +405,18 @@ while running:
     screen.fill((0, 0, 0)) 
     draw_scene(screen, particles, nodes, selected_node, current_time)
     pygame.draw.circle(screen, (100, 100, 100), (cursor_x, cursor_y), 4, 1)
+
+    # Draw Hover Progress Ring
+    if grabbed_node is None and current_hovered is not None:
+        hover_duration = current_time - hover_start_time
+        if hover_duration >= 1.0:  # Wait 1 second before showing the ring
+            progress = (hover_duration - 1.0) / 2.0  # Fill over the remaining 2 seconds
+            if 0 < progress <= 1:
+                ring_radius = int(current_hovered.get('size', 10) + 10)
+                pygame.draw.arc(screen, (0, 255, 255), 
+                                (current_hovered['x'] - ring_radius, current_hovered['y'] - ring_radius, 
+                                 ring_radius * 2, ring_radius * 2), 
+                                math.pi / 2, (math.pi / 2) + (2 * math.pi * progress), 2)
 
     # Render UI Notification Banner
     if time.time() - ui_message_timer < 4.0: 
