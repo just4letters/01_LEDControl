@@ -1,0 +1,583 @@
+{
+    "explosive sun": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 128,
+                "y": 140,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    30,
+                    30,
+                    30
+                ],
+                "animation": "pulse",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 196,
+                "y": 72,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    100,
+                    20,
+                    20
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785084308.300561,
+                "animation_timer": 0
+            },
+            {
+                "x": 130,
+                "y": 194,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    128,
+                    0,
+                    128
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        48,
+                        0,
+                        48
+                    ]
+                ],
+                "last_emit_time": 1785084308.300561,
+                "animation_timer": 0
+            }
+        ]
+    },
+    "temp_save": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 128,
+                "y": 140,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    30,
+                    30,
+                    30
+                ],
+                "animation": "pulse",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 196,
+                "y": 72,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    100,
+                    20,
+                    20
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785084316.342546,
+                "animation_timer": 0
+            },
+            {
+                "x": 130,
+                "y": 194,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    128,
+                    0,
+                    128
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        48,
+                        0,
+                        48
+                    ]
+                ],
+                "last_emit_time": 1785084316.342546,
+                "animation_timer": 0
+            }
+        ]
+    },
+    "entropy": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.05
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 129,
+                "y": 175,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    255,
+                    255,
+                    255
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 50,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        64,
+                        64,
+                        64
+                    ]
+                ],
+                "last_emit_time": 1785086220.8426611,
+                "animation_timer": 0
+            },
+            {
+                "x": 196,
+                "y": 87,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    25,
+                    0,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 58,
+                "y": 88,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    0,
+                    25,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 125,
+                "y": 87,
+                "size": 20,
+                "shape": "triangle",
+                "color": [
+                    25,
+                    25,
+                    25
+                ],
+                "animation": "glisten",
+                "physics_effect": "bounce",
+                "physics_strength": 5.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 49,
+                "y": 178,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    0,
+                    0,
+                    255
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        0,
+                        0,
+                        100
+                    ]
+                ],
+                "last_emit_time": 1785086220.8426611,
+                "animation_timer": 0
+            },
+            {
+                "x": 206,
+                "y": 175,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    255,
+                    255,
+                    0
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        100,
+                        100,
+                        0
+                    ]
+                ],
+                "last_emit_time": 1785086220.8244941,
+                "animation_timer": 0
+            }
+        ]
+    },
+    "awesome": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 124,
+                "y": 136,
+                "size": 10,
+                "shape": "square",
+                "color": [
+                    0,
+                    255,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 195,
+                "y": 63,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 128,
+                "y": 140,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 92,
+                "y": 72,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    255,
+                    255,
+                    255
+                ],
+                "animation": "glisten",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785092123.0625741,
+                "animation_timer": 0
+            },
+            {
+                "x": 152,
+                "y": 82,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    0,
+                    0,
+                    255
+                ],
+                "animation": "static",
+                "physics_effect": "attract",
+                "physics_strength": 5.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            }
+        ]
+    },
+    "exploding volcano": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 121,
+                "y": 128,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        152,
+                        255,
+                        152
+                    ]
+                ],
+                "last_emit_time": 1785202697.721612,
+                "animation_timer": 0
+            },
+            {
+                "x": 82,
+                "y": 204,
+                "size": 1,
+                "shape": "square",
+                "color": [
+                    0,
+                    255,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        0,
+                        255,
+                        0
+                    ]
+                ],
+                "last_emit_time": 1785202697.721612,
+                "animation_timer": 0
+            },
+            {
+                "x": 128,
+                "y": 180,
+                "size": 20,
+                "shape": "triangle",
+                "color": [
+                    255,
+                    69,
+                    0
+                ],
+                "animation": "pulse",
+                "physics_effect": "bounce",
+                "physics_strength": 1.0,
+                "emit_rate": 50,
+                "emit_speed": 2.0,
+                "emit_size": 4,
+                "emit_colors": [
+                    [
+                        255,
+                        0,
+                        0
+                    ],
+                    [
+                        255,
+                        140,
+                        0
+                    ],
+                    [
+                        255,
+                        215,
+                        0
+                    ]
+                ],
+                "last_emit_time": 1785202697.754606,
+                "animation_timer": 0
+            }
+        ]
+    }
+}
