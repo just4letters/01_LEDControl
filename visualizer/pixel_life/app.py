@@ -1,9 +1,15 @@
 import os
 import sys
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# Go up two levels (waterfall_evolve -> visualizer -> 01_LEDControl)
-root_dir = os.path.dirname(os.path.dirname(current_dir)) 
-sys.path.append(root_dir)
+
+# 1. Point Python to the root directory so it can find the 'core' folder
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+# 2. Import global paths from the traffic controller
+from core.config import LED_CONFIG_PATH, FINGER_CONFIG_PATH, NOSE_CONFIG_PATH, HAND_MODEL_PATH, FACE_MODEL_PATH
+
 import json
 import time
 import queue
@@ -21,9 +27,10 @@ from core.vision import HandTracker
 from core import config
 from physics import get_selected_node, spawn_particles, update_physics, draw_scene
 from dotenv import load_dotenv
+from core.voice import VoiceListener
 
 load_dotenv()
-current_dir = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- 1. AI BRAIN SETUP (GEMINI) ---
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -66,54 +73,13 @@ physics_schema = types.Schema(
 sentence_queue = queue.Queue()
 action_queue = queue.Queue()
 
-# --- 2. LOCAL WHISPER LISTENER ---
-def listen_loop():
-    print("[DEBUG] listen_loop thread started.")
-    recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 6000 
-    
-    while True:
-        try:
-            with sr.Microphone(sample_rate=16000) as source:
-                print("\n[VOICE] Local Whisper active!")
-                while True:
-                    try:
-                        audio = recognizer.listen(source, phrase_time_limit=5)
-                        text = recognizer.recognize_whisper(audio, model="base.en").strip()
-                        
-                        if text:
-                            text_lower = text.lower()
-                            print(f"\n> Heard: '{text}'")
-                            
-                            if "shut down" in text_lower or "quit" in text_lower:
-                                action_queue.put({"action": "quit"})
-                                return 
-                            if "clear the screen" in text_lower:
-                                action_queue.put({"action": "clear_all"})
-                                continue
-                            if "looks good" in text_lower or "drop it" in text_lower or "place it" in text_lower:
-                                action_queue.put({"action": "drop_node"})
-                                continue
-                            
-                            while not sentence_queue.empty():
-                                try: sentence_queue.get_nowait()
-                                except queue.Empty: break
-                                    
-                            sentence_queue.put(text)
-                    except sr.WaitTimeoutError: continue
-                    except sr.UnknownValueError: pass 
-                    except Exception as inner_e: print(f"[Whisper Loop Error]: {inner_e}")
-        except Exception as outer_e:
-            print(f"⚠️ Microphone Error: {outer_e}. Rebooting in 2s...")
-            time.sleep(2)
-
 # --- 3. AI WORKER LOOP ---
 def ai_worker_loop():
     print("[DEBUG] ai_worker_loop thread started.")
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
     
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    instructions_path = os.path.join(current_dir, "instructions.txt")
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    instructions_path = os.path.join(SCRIPT_DIR, "instructions.txt")
     
     while True:
         text = sentence_queue.get()
@@ -168,16 +134,22 @@ def ai_worker_loop():
 
 # --- 4. LOAD CONFIG & SAVED STATES ---
 try:
-    with open("led_config.json", "r") as f:
+    # 1. Load the screen boundaries
+    with open(LED_CONFIG_PATH, "r") as f:
         led_cfg = json.load(f)
-    homography_matrix = np.array(led_cfg["homography_matrix"], dtype=np.float32)
     CANVAS_W = int(led_cfg.get("width", 256))
     CANVAS_H = int(led_cfg.get("height", 256)) + 25
-except:
-    print("Error loading led_config.json.")
+    
+    # 2. Load the camera homography matrix
+    with open(FINGER_CONFIG_PATH, "r") as f:
+        finger_cfg = json.load(f)
+    homography_matrix = np.array(finger_cfg["homography_matrix"], dtype=np.float32)
+    
+except Exception as e:
+    print(f"❌ Error loading configurations: {e}")
     sys.exit()
 
-saves_path = os.path.join(current_dir, "saves_pixel_life.json")
+saves_path = os.path.join(SCRIPT_DIR, "saves_pixel_life.json")
 saved_states = {}
 if os.path.exists(saves_path):
     try:
@@ -222,8 +194,25 @@ ui_message = ""
 ui_message_timer = 0
 show_saved_states = False  # Flag for saved worlds UI overlay
 
+def pixel_life_commands(text_lower):    # Define app-specific commands for Pixel Life
+    """Parses voice commands specific to Pixel Life."""
+    if "clear the screen" in text_lower:
+        return {"action": "clear_all"}
+    
+    if "looks good" in text_lower or "drop it" in text_lower or "place it" in text_lower:
+        return {"action": "drop_node"}
+        
+    # Return None if no specific commands were matched, so the AI handles it
+    return None
+
 # --- 6. START THREADS ---
-threading.Thread(target=listen_loop, daemon=True).start()
+voice_listener = VoiceListener(
+    sentence_queue, 
+    action_queue, 
+    custom_parser=pixel_life_commands
+)
+voice_listener.start(prompt_message="[VOICE] Pixel Life active! Say 'Drop it' or 'Clear the screen'.")
+
 threading.Thread(target=ai_worker_loop, daemon=True).start()
 tracker = HandTracker(homography_matrix)
 tracker.start()

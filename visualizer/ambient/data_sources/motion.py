@@ -43,7 +43,7 @@ class MotionSensor:
     def start(self):
         if self.running:
             return
-        self.cap = cv2.VideoCapture(config.CAMERA_INDEX)
+        self.cap = cv2.VideoCapture(config.FINGER_CAMERA_INDEX)
         if not self.cap.isOpened():
             print("[motion] Could not open camera.")
             return

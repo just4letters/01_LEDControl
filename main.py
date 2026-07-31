@@ -1,17 +1,28 @@
+"""
+main.py
+
+Unified system launcher and visualizer manager.
+Routes voice commands, handles pre-flight configuration checks,
+and launches sub-processes clean of Pygame holds.
+"""
+
 import os
 import subprocess
 import sys
 import threading
 import pygame
 import json
-import speech_recognition as sr
+import queue
+
+# --- PATH & MODULE IMPORTS ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+from core.config import LED_CONFIG_PATH, ROOT_DIR
+from core.voice import VoiceListener
 
 pending_launch = None
 
 # --- LOAD LED CONFIGURATION ---
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-LED_CONFIG_PATH = os.path.join(SCRIPT_DIR, "led_config.json")
-
 try:
     with open(LED_CONFIG_PATH, "r") as f:
         led_cfg = json.load(f)
@@ -23,11 +34,10 @@ except Exception:
     CANVAS_W, CANVAS_H, OFFSET_X, OFFSET_Y = 256, 256, 0, 0
 
 # --- THE CALIBRATION ROUTING DICTIONARY ---
-# This maps the missing config file to the tool that creates it
 CALIBRATION_ROUTER = {
     "led_config.json": "tools/screen_calibration.py",
     "nose_config.json": "tools/nose_calibration.py",
-    "finger_config.json": "tools/finger_calibrate_voice.py" # Update this filename to whatever your script saves!
+    "finger_config.json": "tools/finger_calibrate_voice.py"
 }
 
 # Explicit tools for when the user asks to recalibrate manually
@@ -45,13 +55,13 @@ def get_available_apps():
     apps = [
         {
             "name": "Black Hole Sandbox", 
-            "path": "visualizer/pixel_life_face/nose_blink_app.py", 
+            "path": "visualizer/pixel_life_face/app.py", 
             "keywords": ["black hole", "sandbox", "physics"],
-            "requires": ["led_config.json", "nose_config.json"] # <--- SET REQUIREMENTS HERE
+            "requires": ["led_config.json", "nose_config.json"]
         }
     ]
     
-    # Dynamically scan for older visualizers using the standard app.py naming
+    # Dynamically scan for visualizers using standard app.py naming
     vis_dir = os.path.join(SCRIPT_DIR, "visualizer")
     if os.path.exists(vis_dir):
         folders = [d for d in os.listdir(vis_dir) 
@@ -59,7 +69,8 @@ def get_available_apps():
         folders.sort()
         
         for folder in folders:
-            if folder == "pixel_life_face": continue # Skip our manual entry
+            if folder == "pixel_life_face": 
+                continue 
                 
             potential_path = os.path.join(vis_dir, folder, "app.py")
             if os.path.exists(potential_path):
@@ -68,7 +79,7 @@ def get_available_apps():
                     "name": clean_name, 
                     "path": f"visualizer/{folder}/app.py", 
                     "keywords": [folder.replace("_", " "), clean_name.lower()],
-                    "requires": ["led_config.json"] # <--- DEFAULT REQUIREMENT FOR OLD APPS
+                    "requires": ["led_config.json"]
                 })
                 
     return apps
@@ -95,7 +106,6 @@ def launch_app(app_dict):
             print(f"❌ Error: Missing '{target_config}' and no tool is registered to create it.")
             return
     else:
-        # All clear!
         print(f"\n🚀 Booting engine for: {app_dict['name']}...")
         script_path = os.path.join(SCRIPT_DIR, app_dict['path'])
     
@@ -104,7 +114,8 @@ def launch_app(app_dict):
     
     # 3. LAUNCH PROCESS
     env = os.environ.copy()
-    env["PYTHONPATH"] = SCRIPT_DIR
+    existing_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{SCRIPT_DIR}:{existing_pythonpath}" if existing_pythonpath else SCRIPT_DIR
     
     try:
         subprocess.run([sys.executable, script_path], env=env)
@@ -114,70 +125,64 @@ def launch_app(app_dict):
     os._exit(0)
 
 
-def voice_listener(apps):
-    global pending_launch
-    recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 600
+def create_launcher_parser(apps):
+    """
+    Returns a custom_parser callback tailored to launcher navigation.
+    """
     word_to_num = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9}
-    
-    try:
-        with sr.Microphone(sample_rate=16000) as source:
-            print("🎤 Voice listener active...")
-            while True:
-                try:
-                    audio = recognizer.listen(source, timeout=1, phrase_time_limit=3)
-                    text = recognizer.recognize_whisper(audio, model="base.en").strip().lower()
-                    
-                    if text:
-                        print(f"Heard: '{text}'")
-                        
-                        # Command: Exit
-                        if "quit" in text or "exit" in text or "stop" in text:
-                            os._exit(0)
-                            
-                        # Command: Recalibrate
-                        if "calibrate" in text or "recalibrate" in text:
-                            for tool in TOOLS:
-                                for kw in tool["keywords"]:
-                                    if kw in text:
-                                        pending_launch = tool
-                                        break
-                            if pending_launch: continue
-                        
-                        # Command: Launch by Name
-                        for app in apps:
-                            for kw in app["keywords"]:
-                                if kw in text:
-                                    pending_launch = app
-                                    break
-                        if pending_launch: continue
-                        
-                        # Command: Launch by Number
-                        words = text.replace(".", "").replace(",", "").split()
-                        for word in words:
-                            num = word_to_num.get(word)
-                            if num is None and word.isdigit():
-                                num = int(word)
-                            if num and 1 <= num <= len(apps):
-                                pending_launch = apps[num-1]
-                                break
-                                
-                except Exception:
-                    pass
-    except Exception as e:
-        print(f"⚠️ Microphone error: {e}")
+
+    def launcher_commands(text_lower):
+        global pending_launch
+
+        # 1. Command: Recalibrate
+        if "calibrate" in text_lower or "recalibrate" in text_lower:
+            for tool in TOOLS:
+                for kw in tool["keywords"]:
+                    if kw in text_lower:
+                        pending_launch = tool
+                        return {"action": "recalibrate"}
+
+        # 2. Command: Launch by Name / Keyword
+        for app in apps:
+            for kw in app["keywords"]:
+                if kw in text_lower:
+                    pending_launch = app
+                    return {"action": "launch"}
+
+        # 3. Command: Launch by Number
+        words = text_lower.replace(".", "").replace(",", "").split()
+        for word in words:
+            num = word_to_num.get(word)
+            if num is None and word.isdigit():
+                num = int(word)
+            if num and 1 <= num <= len(apps):
+                pending_launch = apps[num - 1]
+                return {"action": "launch"}
+
+        return None
+
+    return launcher_commands
 
 
 def main():
     global pending_launch
     apps = get_available_apps()
     
-    threading.Thread(target=voice_listener, args=(apps,), daemon=True).start()
-    
+    sentence_queue = queue.Queue()
+    action_queue = queue.Queue()
+
+    # Hook up central VoiceListener using the launcher custom parser
+    voice_listener = VoiceListener(
+        sentence_queue, 
+        action_queue, 
+        custom_parser=create_launcher_parser(apps)
+    )
+    voice_listener.start(prompt_message="🎤 Voice listener active... Say App Name or Number")
+
     pygame.init()
     try:
         screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN, display=1)
-    except:
+    except Exception:
         screen = pygame.display.set_mode((1920, 1080), pygame.FULLSCREEN)
         
     pygame.mouse.set_visible(False)
@@ -192,7 +197,14 @@ def main():
     
     running = True
     while running:
+        # Check action queue for quit commands from voice_listener
+        while not action_queue.empty():
+            payload = action_queue.get()
+            if payload.get("action") == "quit":
+                running = False
+
         if pending_launch:
+            voice_listener.stop()
             launch_app(pending_launch)
             
         for event in pygame.event.get():
@@ -201,12 +213,10 @@ def main():
             if event.type == pygame.KEYDOWN:
                 if event.key in (pygame.K_ESCAPE, pygame.K_q):
                     running = False
-                # Trigger apps via number keys
                 elif pygame.K_1 <= event.key <= pygame.K_9:
                     idx = event.key - pygame.K_1
                     if idx < len(apps):
                         launch_app(apps[idx])
-                # Trigger recalibration via letter keys
                 elif event.key == pygame.K_s:
                     launch_app(TOOLS[0]) # Screen
                 elif event.key == pygame.K_n:
@@ -237,6 +247,7 @@ def main():
         pygame.display.flip()
         clock.tick(30)
         
+    voice_listener.stop()
     pygame.quit()
     sys.exit()
 

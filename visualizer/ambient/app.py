@@ -12,10 +12,16 @@
 import os
 import sys
 
-# 1. FIX THE SYSTEM PATH FIRST SO PYTHON CAN FIND 'core'
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(os.path.dirname(current_dir))
-sys.path.append(root_dir)
+
+
+# 1. Point Python to the root directory so it can find the 'core' folder
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+# 2. Import global paths from the traffic controller
+from core.config import LED_CONFIG_PATH, FINGER_CONFIG_PATH, NOSE_CONFIG_PATH, HAND_MODEL_PATH, FACE_MODEL_PATH
 
 # 2. NOW WE CAN SAFELY IMPORT CUSTOM MODULES
 from core.vision import HandTracker
@@ -26,6 +32,7 @@ from data_sources.time_of_day import TimeOfDayService
 from data_sources.motion import MotionSensor
 from data_sources.rss import RSSService
 from data_sources.events import EventsService
+from core.voice import VoiceListener
 
 # 3. IMPORT EVERYTHING ELSE
 import json
@@ -67,55 +74,12 @@ ambient_schema = types.Schema(
 sentence_queue = queue.Queue()
 action_queue = queue.Queue()
 
-
-# --- 2. LOCAL WHISPER LISTENER ---
-def listen_loop():
-    print("[DEBUG] listen_loop thread has started successfully.")
-    recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 600
-    recognizer.dynamic_energy_threshold = False
-
-    while True:
-        try:
-            with sr.Microphone(sample_rate=16000) as source:
-                print("\n[VOICE] Ambient listener active! (e.g. 'sync weather to Austin', 'make it calmer')")
-                while True:
-                    try:
-                        audio = recognizer.listen(source, phrase_time_limit=5)
-                        text = recognizer.recognize_whisper(audio, model="base.en").strip()
-
-                        if text:
-                            text_lower = text.lower()
-                            print(f"\n> Heard: '{text}'")
-
-                            if "shut down" in text_lower or "quit" in text_lower:
-                                action_queue.put({"action": "quit"})
-                                return
-
-                            while not sentence_queue.empty():
-                                try:
-                                    sentence_queue.get_nowait()
-                                except queue.Empty:
-                                    break
-
-                            sentence_queue.put(text)
-                    except sr.WaitTimeoutError:
-                        continue
-                    except sr.UnknownValueError:
-                        pass
-                    except Exception as inner_e:
-                        print(f"[Whisper Loop Error]: {inner_e}")
-        except Exception as outer_e:
-            print(f"⚠️ Hardware Microphone Error: {outer_e}. Rebooting in 2s...")
-            time.sleep(2)
-
-
 # --- 3. AI WORKER LOOP ---
 def ai_worker_loop():
     print("[DEBUG] ai_worker_loop thread has started successfully.")
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
 
-    instructions_path = os.path.join(current_dir, "instructions.txt")
+    instructions_path = os.path.join(SCRIPT_DIR, "instructions.txt")
 
     while True:
         text = sentence_queue.get()
@@ -167,13 +131,19 @@ def ai_worker_loop():
 
 # --- 4. LOAD CONFIGS ---
 try:
-    with open("led_config.json", "r") as f:
+    # 1. Load the screen boundaries
+    with open(LED_CONFIG_PATH, "r") as f:
         led_cfg = json.load(f)
-    homography_matrix = np.array(led_cfg["homography_matrix"], dtype=np.float32)
     CANVAS_W = int(led_cfg.get("width", 256))
     CANVAS_H = int(led_cfg.get("height", 256)) + 25
-except Exception:
-    print("Error loading led_config.json.")
+    
+    # 2. Load the camera homography matrix
+    with open(FINGER_CONFIG_PATH, "r") as f:
+        finger_cfg = json.load(f)
+    homography_matrix = np.array(finger_cfg["homography_matrix"], dtype=np.float32)
+    
+except Exception as e:
+    print(f"❌ Error loading configurations: {e}")
     sys.exit()
 
 # --- 5. DATA SOURCES ---
@@ -238,7 +208,9 @@ def set_camera_mode(new_mode):
 
 
 # --- 8. START THREADS ---
-threading.Thread(target=listen_loop, daemon=True).start()
+voice_listener = VoiceListener(sentence_queue, action_queue)
+voice_listener.start(prompt_message="[VOICE] Ambient listener active! (e.g. 'sync weather', 'dim it')")
+
 threading.Thread(target=ai_worker_loop, daemon=True).start()
 
 # --- 9. MAIN LOOP ---

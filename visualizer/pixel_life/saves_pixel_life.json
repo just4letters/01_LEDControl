@@ -579,5 +579,78 @@
                 "animation_timer": 0
             }
         ]
+    },
+    "wonderworld": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 86,
+                "y": 90,
+                "size": 10,
+                "shape": "square",
+                "color": [
+                    255,
+                    0,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        255,
+                        0
+                    ]
+                ],
+                "last_emit_time": 1785520445.343009,
+                "animation_timer": 0
+            },
+            {
+                "x": 85,
+                "y": 196,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    255,
+                    255,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 15,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [
+                    [
+                        255,
+                        0,
+                        0
+                    ]
+                ],
+                "last_emit_time": 1785520445.343009,
+                "animation_timer": 0
+            }
+        ]
     }
 }

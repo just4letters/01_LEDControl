@@ -9,12 +9,15 @@ ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-# Global Paths
-FINGER_CONFIG_PATH = os.path.join(ROOT_DIR, "finger_config.json")
-INSTRUCTIONS_PATH = os.path.join(SCRIPT_DIR, "calib_instructions.txt")
+# Centralized imports from core
+from core import config
+from core.voice import VoiceListener
+
+# Paths sourced directly from config
+FINGER_CONFIG_PATH = config.FINGER_CONFIG_PATH
+INSTRUCTIONS_PATH = config.CALIB_INSTRUCTIONS_PATH
 MAIN_PY_PATH = os.path.join(ROOT_DIR, "main.py")
 
-from core import config
 import cv2
 import numpy as np
 import pygame
@@ -23,7 +26,6 @@ import time
 import queue
 import threading
 import subprocess
-import speech_recognition as sr
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -48,26 +50,7 @@ sentence_queue = queue.Queue()
 action_queue = queue.Queue()
 state = "GRID" # Global state for AI context
 
-# --- 2. LOCAL WHISPER LISTENER ---
-def listen_loop():
-    recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 600 
-    while True:
-        try:
-            with sr.Microphone(sample_rate=16000) as source:
-                while True:
-                    try:
-                        audio = recognizer.listen(source, phrase_time_limit=5)
-                        text = recognizer.recognize_whisper(audio, model="base.en").strip()
-                        if text:
-                            print(f"\n[🎤 Heard]: '{text}'")
-                            sentence_queue.put(text)
-                    except sr.WaitTimeoutError: continue
-                    except Exception: pass
-        except Exception:
-            time.sleep(2)
-
-# --- 3. AI WORKER LOOP ---
+# --- 2. AI WORKER LOOP ---
 def ai_worker_loop():
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash']
     
@@ -100,7 +83,7 @@ def ai_worker_loop():
                 success = True 
             except Exception: continue 
 
-# --- 4. INITIALIZE CALIBRATION RESOURCES ---
+# --- 3. INITIALIZE CALIBRATION RESOURCES ---
 pygame.init()
 pygame.key.set_repeat(250, 50) 
 pygame.font.init()
@@ -161,7 +144,12 @@ def get_corner_markers(size):
         markers.append(bg)
     return markers
 
-cap = cv2.VideoCapture(config.CAMERA_INDEX)
+# Initialize camera using central config settings
+cap = cv2.VideoCapture(config.FINGER_CAMERA_INDEX)
+if not cap.isOpened():
+    print(f"❌ Error: Could not open finger camera (Index {config.FINGER_CAMERA_INDEX}).")
+    sys.exit()
+
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, config.CAM_WIDTH)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, config.CAM_HEIGHT)
 cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
@@ -169,8 +157,10 @@ cap.set(cv2.CAP_PROP_FPS, config.CAM_FPS)
 roi_x, roi_y, roi_w, roi_h = 0, 0, 256, 256 
 error_display_timer = 0  
 
-# --- START AI THREADS ---
-threading.Thread(target=listen_loop, daemon=True).start()
+# --- 4. START VOICE AND AI THREADS ---
+voice_listener = VoiceListener(sentence_queue, action_queue)
+voice_listener.start(prompt_message="🎤 Calibration voice listener active... Say 'Looks Good' or adjustments.")
+
 threading.Thread(target=ai_worker_loop, daemon=True).start()
 
 print("\n--- PHASE 1: AUTO-DETECT ROUGH BOUNDS ---")
@@ -214,7 +204,6 @@ while running:
                 if direction == "left": roi_w -= amt
                 elif direction == "right": roi_w += amt
                 
-        # Now unlocked for BOTH GRID and TUNE phases
         elif action == "resize_markers":
             amt = payload.get("amount", 10)
             direction = payload.get("direction", "bigger")
@@ -228,7 +217,6 @@ while running:
             elif direction == "half":
                 current_marker_size = max(40, current_marker_size // 2)
                 
-            # If we are in Phase 1, rebuild the grid dynamically
             if state == "GRID":
                 bg_surface, marker_map = build_grid_surface(current_marker_size)
                 
@@ -241,7 +229,6 @@ while running:
             if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                 running = False
                 
-            # Global Keyboard Resizing
             if event.key == pygame.K_EQUALS or event.key == pygame.K_PLUS:
                 current_marker_size = min(500, current_marker_size + 10)
                 if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
@@ -300,12 +287,12 @@ while running:
                                 "homography_matrix": matrix.tolist()
                             }
                             
-                            # Using the global resolved path for saving
                             with open(FINGER_CONFIG_PATH, "w") as f:
                                 json.dump(save_data, f, indent=4)
                                 
                             print(f"\n✅ SUCCESS! Bounds ({roi_w}x{roi_h}) saved.")
                             
+                            voice_listener.stop()
                             cap.release()
                             cv2.destroyAllWindows()
                             pygame.quit()
@@ -395,7 +382,6 @@ while running:
             elif key == 32 and state == "GRID": pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_SPACE))
             elif key == 13 and state == "TUNE": pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
             
-            # Global OpenCV Window Resizing Controls
             elif key == ord('=') or key == ord('+'):
                 current_marker_size = min(500, current_marker_size + 10)
                 if state == "GRID": bg_surface, marker_map = build_grid_surface(current_marker_size)
@@ -415,6 +401,7 @@ while running:
                 elif key == 63235: roi_w += step 
 
 # --- CLEANUP ---
+voice_listener.stop()
 cap.release()
 cv2.destroyAllWindows()
 pygame.quit()

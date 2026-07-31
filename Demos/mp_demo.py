@@ -7,10 +7,17 @@ from mediapipe.tasks.python import vision
 from mediapipe.tasks.python.vision import drawing_utils
 from mediapipe.tasks.python.vision import drawing_styles
 
+import sys
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+from core.config import FACE_CAMERA_INDEX
+
 print("🎬 Starting Modern MediaPipe Tasks API Demo...")
 
 # 1. Download the required AI Model File if it doesn't exist
-model_path = 'face_landmarker.task'
+model_path = os.path.exists(FACE_MODEL_PATH)
 if not os.path.exists(model_path):
     print("⏳ Downloading face_landmarker.task model...")
     url = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
@@ -31,7 +38,7 @@ options = vision.FaceLandmarkerOptions(
 detector = vision.FaceLandmarker.create_from_options(options)
 
 # Open the default webcam
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(FACE_CAMERA_INDEX)
 print("Press the 'ESC' key to close the window.")
 
 while cap.isOpened():

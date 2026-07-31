@@ -5,10 +5,17 @@ from mediapipe.tasks.python import vision as mp_vision
 import numpy as np
 import os
 import json
+import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+from core.config import FINGER_CAMERA_INDEX
 
 # --- 1. TRY TO LOAD YOUR CALIBRATION ---
 homography_matrix = None
-for config_file in ['led_config.json', 'saved_states.json']:
+for config_file in [os.path.exists(LED_CONFIG_PATH), 'saved_states.json']:
     if os.path.exists(config_file):
         try:
             with open(config_file, 'r') as f:
@@ -28,7 +35,7 @@ if homography_matrix is None:
     homography_matrix = np.eye(3, dtype=np.float32)
 
 # --- 2. INITIALIZE MEDIAPIPE ---
-MP_MODEL_PATH = 'hand_landmarker.task'
+MP_MODEL_PATH = os.path.exists(HAND_MODEL_PATH)
 if not os.path.exists(MP_MODEL_PATH):
     print("❌ Error: MediaPipe AI model missing (hand_landmarker.task).")
     exit()
@@ -38,7 +45,7 @@ options = mp_vision.HandLandmarkerOptions(base_options=base_options, num_hands=1
 detector = mp_vision.HandLandmarker.create_from_options(options)
 
 # --- 3. INITIALIZE CAMERA ---
-cap = cv2.VideoCapture(0) # Change to 1 if you want the external webcam
+cap = cv2.VideoCapture(FINGER_CAMERA_INDEX) # Change to 1 if you want the external webcam
 
 if not cap.isOpened():
     print("❌ Error: Could not open camera.")

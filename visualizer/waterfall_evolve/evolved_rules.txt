@@ -1,0 +1,2 @@
+- If the user asks for 'Make a Jimi Hendrix hail storm.', you MUST set color_rgb to [138, 43, 226], gravity to 0.045, wind to 0.02, and wind_swirl to 0.45, and color_rgb_2 to [255, 20, 147].
+- If the user asks for 'create a christmas blizzard.', you MUST set color_rgb to [255, 255, 255], gravity to 0.045, wind to 0.035, and wind_swirl to 0.45, and color_rgb_2 to [200, 0, 0].

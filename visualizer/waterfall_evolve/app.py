@@ -2,15 +2,20 @@
 import sys
 import os
 
-# 1. FIX THE SYSTEM PATH FIRST SO PYTHON CAN FIND 'core'
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(os.path.dirname(current_dir)) 
-sys.path.append(root_dir)
+# 1. Point Python to the root directory so it can find the 'core' folder
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..', '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+# 2. Import global paths from the traffic controller
+from core.config import LED_CONFIG_PATH, FINGER_CONFIG_PATH, NOSE_CONFIG_PATH, HAND_MODEL_PATH, FACE_MODEL_PATH
 
 # 2. NOW WE CAN SAFELY IMPORT CUSTOM MODULES
 from core.vision import HandTracker
 from core import config
 from physics import spawn_particles, update_physics
+from core.voice import VoiceListener
 
 # 3. IMPORT EVERYTHING ELSE
 import numpy as np
@@ -67,82 +72,27 @@ evolution_queue = queue.Queue() # New queue for the Vision AI
 last_user_request = "" # Remembers what you asked for before saying "evolve"
 
 # Create a temporary folder for the screenshots
-frames_dir = os.path.join(current_dir, "temp_frames")
+frames_dir = os.path.join(SCRIPT_DIR, "temp_frames")
 os.makedirs(frames_dir, exist_ok=True)
-
-# --- 2. LOCAL WHISPER LISTENER ---
-def listen_loop():
-    print("[DEBUG] listen_loop thread has started successfully.")
-    recognizer = sr.Recognizer()
-    recognizer.energy_threshold = 600 
-    recognizer.dynamic_energy_threshold = False 
-    
-    while True:
-        try:
-            with sr.Microphone(sample_rate=16000) as source:
-                print("\n[VOICE] Local Whisper active! (Say 'Make a rushing waterfall' or 'Make it drizzle')")
-                
-                while True:
-                    try:
-                        audio = recognizer.listen(source, phrase_time_limit=5)
-                        text = recognizer.recognize_whisper(audio, model="base.en").strip()
-                        
-                        if text:
-                            text_lower = text.lower()
-                            print(f"\n> Heard: '{text}'")
-                            
-                            if "shut down" in text_lower or "quit" in text_lower:
-                                action_queue.put({"action": "quit"})
-                                return 
-                            if "clear the screen" in text_lower:
-                                action_queue.put({"action": "clear_all"})
-                                continue
-                                
-                            # --- NEW EVOLUTION INTERCEPT ---
-                            if "evolve" in text_lower or "try again" in text_lower:
-                                global last_user_request
-                                if last_user_request:
-                                    print(f"🧬 Triggering Evolution for: '{last_user_request}'")
-                                    action_queue.put({"action": "trigger_capture"})
-                                else:
-                                    print("⚠️ Cannot evolve: No previous request found.")
-                                continue
-                                
-                            # Save this request in case the user wants to evolve it next
-                            last_user_request = text 
-                            
-                            while not sentence_queue.empty():
-                                try: sentence_queue.get_nowait()
-                                except queue.Empty: break
-                                    
-                            sentence_queue.put(text)
-                            
-                    except sr.WaitTimeoutError: continue
-                    except sr.UnknownValueError: pass 
-                    except Exception as inner_e: print(f"[Whisper Loop Error]: {inner_e}")
-                        
-        except Exception as outer_e:
-            print(f"⚠️ Hardware Microphone Error: {outer_e}. Rebooting in 2s...")
-            time.sleep(2)
 
 # --- 3. AI WORKER LOOP ---
 def ai_worker_loop():
     print("[DEBUG] ai_worker_loop thread has started successfully.")
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
     
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    instructions_path = os.path.join(current_dir, "instructions.txt")
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    instructions_path = os.path.join(SCRIPT_DIR, "instructions.txt")
     
     while True:
         text = sentence_queue.get()
         print(f"🧠 AI is thinking about: '{text}'...")
         
         try:
-            with open(os.path.join(current_dir, "base_instructions.txt"), "r") as f:
+            with open(os.path.join(SCRIPT_DIR, "base_instructions.txt"), "r") as f:
                 base_prompt = f.read()
                 
             # Append any evolved rules to the bottom of the prompt
-            evolved_path = os.path.join(current_dir, "evolved_rules.txt")
+            evolved_path = os.path.join(SCRIPT_DIR, "evolved_rules.txt")
             if os.path.exists(evolved_path):
                 with open(evolved_path, "r") as f:
                     base_prompt += f"\n\n{f.read()}"
@@ -193,8 +143,8 @@ def ai_worker_loop():
 # --- 3.5 VISION CRITIC LOOP ---
 def evolution_worker_loop():
     print("[DEBUG] evolution_worker_loop thread started.")
-    base_instructions_path = os.path.join(current_dir, "base_instructions.txt")
-    evolved_rules_path = os.path.join(current_dir, "evolved_rules.txt")
+    base_instructions_path = os.path.join(SCRIPT_DIR, "base_instructions.txt")
+    evolved_rules_path = os.path.join(SCRIPT_DIR, "evolved_rules.txt")
     
     # 1. ADD THE FALLBACK LIST
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash', 'gemini-2.5-flash']
@@ -296,22 +246,52 @@ Example:
 
 # --- 4. LOAD CONFIGS & STATES ---
 try:
-    with open("led_config.json", "r") as f:
-        config_data = json.load(f)
-    homography_matrix = np.array(config_data["homography_matrix"], dtype=np.float32)
-    CANVAS_W = int(config_data.get("width", 256))
-    CANVAS_H = int(config_data.get("height", 256)) + 25
+    # 1. Load the screen boundaries
+    with open(LED_CONFIG_PATH, "r") as f:
+        led_cfg = json.load(f)
+    CANVAS_W = int(led_cfg.get("width", 256))
+    CANVAS_H = int(led_cfg.get("height", 256)) + 25
+    
+    # 2. Load the camera homography matrix
+    with open(FINGER_CONFIG_PATH, "r") as f:
+        finger_cfg = json.load(f)
+    homography_matrix = np.array(finger_cfg["homography_matrix"], dtype=np.float32)
+    
 except Exception as e:
-    print("Error loading led_config.json.")
+    print(f"❌ Error loading configurations: {e}")
     sys.exit()
 
-saves_path = os.path.join(current_dir, "saves_waterfall.json")
+saves_path = os.path.join(SCRIPT_DIR, "saves_waterfall.json")
 saved_states = {}
 if os.path.exists(saves_path):
     try:
         with open(saves_path, "r") as f:
             saved_states = json.load(f)
     except: pass
+
+# State variable to track the last prompt for evolution loops
+last_user_request = None
+
+def waterfall_evolve_commands(text_lower): #define custom listeners
+    """Parses voice commands specific to Waterfall Evolve."""
+    global last_user_request
+
+    if "clear the screen" in text_lower:
+        return {"action": "clear_all"}
+
+    if "evolve" in text_lower or "try again" in text_lower:
+        if last_user_request:
+            print(f"🧬 Triggering Evolution for: '{last_user_request}'")
+            return {"action": "trigger_capture"}
+        else:
+            print("⚠️ Cannot evolve: No previous request found.")
+            return {"action": "ignore"}
+
+    # Save the original text to last_user_request before sending to AI worker
+    last_user_request = text_lower
+
+    # Return None so the central listener pushes the text to sentence_queue for Gemini
+    return None
 
 # --- 5. INITIALIZE HARDWARE (Pygame & OpenCV) ---
 pygame.init()
@@ -348,7 +328,15 @@ capture_count = 0
 last_capture_time = 0
 
 # --- 7. START THREADS ---
-threading.Thread(target=listen_loop, daemon=True).start()
+voice_listener = VoiceListener(
+    sentence_queue, 
+    action_queue, 
+    custom_parser=waterfall_evolve_commands
+)
+voice_listener.start(
+    prompt_message="[VOICE] Waterfall Evolve active! (Say 'Make a rushing waterfall' or 'Evolve')"
+)
+
 threading.Thread(target=ai_worker_loop, daemon=True).start()
 threading.Thread(target=evolution_worker_loop, daemon=True).start()
 tracker = HandTracker(homography_matrix)
