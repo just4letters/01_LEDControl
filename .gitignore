@@ -1,7 +1,23 @@
-venv/
-__pycache__/
-.DS_Store
+
 saved_states.json
 led_config.json
 vosk-model-small-en-us-0.15/
 .env
+
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Local hardware configurations
+nose_config.json

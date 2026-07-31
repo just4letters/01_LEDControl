@@ -1,10 +1,18 @@
 import sys
 import os
 
-# Make the script aware of the main root folder
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
+# --- BULLETPROOF PATH RESOLUTION ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, '..'))
+
+# Add root to sys.path so 'from core import config' works reliably
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+# Global Paths
+FINGER_CONFIG_PATH = os.path.join(ROOT_DIR, "finger_config.json")
+INSTRUCTIONS_PATH = os.path.join(SCRIPT_DIR, "calib_instructions.txt")
+MAIN_PY_PATH = os.path.join(ROOT_DIR, "main.py")
 
 from core import config
 import cv2
@@ -62,14 +70,14 @@ def listen_loop():
 # --- 3. AI WORKER LOOP ---
 def ai_worker_loop():
     fallback_models = ['gemini-3.1-flash-lite', 'gemini-flash-lite-latest', 'gemini-3.5-flash']
-    instructions_path = os.path.join(current_dir, "calib_instructions.txt")
     
     while True:
         text = sentence_queue.get()
         try:
-            with open(instructions_path, "r") as f:
+            with open(INSTRUCTIONS_PATH, "r") as f:
                 base_prompt = f.read()
         except FileNotFoundError:
+            print(f"⚠️ Error: Could not find instructions at {INSTRUCTIONS_PATH}")
             continue 
             
         dynamic_prompt = base_prompt.format(state=state)
@@ -206,7 +214,7 @@ while running:
                 if direction == "left": roi_w -= amt
                 elif direction == "right": roi_w += amt
                 
-        # Now unlocked for BOTH GRID and TUNE phases!
+        # Now unlocked for BOTH GRID and TUNE phases
         elif action == "resize_markers":
             amt = payload.get("amount", 10)
             direction = payload.get("direction", "bigger")
@@ -291,8 +299,9 @@ while running:
                                 "roi_w": roi_w, "roi_h": roi_h,
                                 "homography_matrix": matrix.tolist()
                             }
-                            config_path = os.path.join(parent_dir, "led_config.json")
-                            with open(config_path, "w") as f:
+                            
+                            # Using the global resolved path for saving
+                            with open(FINGER_CONFIG_PATH, "w") as f:
                                 json.dump(save_data, f, indent=4)
                                 
                             print(f"\n✅ SUCCESS! Bounds ({roi_w}x{roi_h}) saved.")
@@ -302,8 +311,7 @@ while running:
                             pygame.quit()
                             
                             print("🚀 Auto-launching main.py...")
-                            main_path = os.path.join(parent_dir, "main.py")
-                            subprocess.Popen([sys.executable, main_path], cwd=parent_dir)
+                            subprocess.Popen([sys.executable, MAIN_PY_PATH], cwd=ROOT_DIR)
                             sys.exit(0)
                         else:
                             print("\nError: Camera cannot see all 4 corner markers clearly. Adjust the camera and say 'looks good' again.")
@@ -380,7 +388,7 @@ while running:
             
         cv2.imshow("Webcam View", display_frame)
         
-        # --- OpenCV Key Capture (Works when OpenCV window is focused) ---
+        # --- OpenCV Key Capture ---
         key = cv2.waitKeyEx(1)
         if key != -1:
             if key == 27 or key == ord('q'): running = False

@@ -1,0 +1,26 @@
+01_LEDControl/
+├── 📁 core/                     # Shared logic and classes
+│   ├── config.py                # (Optional) Helper to load json configs
+│   ├── debug_camera.py
+│   ├── vision.py
+│   └── voice_calibrate.py
+├── 📁 models/                   # Global AI models (NEW)
+│   ├── face_landmarker.task
+│   ├── hand_landmarker.task
+│   └── vosk-model-small-en-us/
+├── 📁 tools/                    # Global setup and mapping scripts (NEW)
+│   ├── nose_calibration.py      <-- Moved from pixel_life_face
+│   └── screen_calibration.py    <-- Moved from pixel_life_face
+├── 📁 visualizer/               # The creative apps
+│   ├── 📁 ambient/
+│   ├── 📁 pixel_life/
+│   ├── 📁 pixel_life_face/
+│   │   └── nose_blink_app.py    <-- Remains here
+│   ├── 📁 pixel_life_runway/
+│   └── 📁 waterfall/
+├── .env
+├── .gitignore
+├── led_config.json              # Global hardware config
+├── nose_config.json             # Global user config
+├── requirements.txt
+└── main.py                      # Master launcher
