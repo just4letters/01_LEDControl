@@ -470,5 +470,102 @@
                 "animation_timer": 0
             }
         ]
+    },
+    "love a love": {
+        "global_state": {
+            "gravity_x": 0.0,
+            "gravity_y": 0.0
+        },
+        "finger_state": {
+            "mode": "none",
+            "physics_strength": 2.0,
+            "emit_rate": 10,
+            "emit_speed": 3.0,
+            "emit_colors": [
+                [
+                    255,
+                    255,
+                    255
+                ]
+            ]
+        },
+        "nodes": [
+            {
+                "x": 127,
+                "y": 136,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    255,
+                    255,
+                    0
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            },
+            {
+                "x": 190,
+                "y": 74,
+                "size": 20,
+                "shape": "circle",
+                "color": [
+                    255,
+                    255,
+                    0
+                ],
+                "animation": "pulse",
+                "physics_effect": "bounce",
+                "physics_strength": 5.0,
+                "emit_rate": 50,
+                "emit_speed": 5.0,
+                "emit_size": 3,
+                "emit_colors": [
+                    [
+                        255,
+                        165,
+                        0
+                    ],
+                    [
+                        255,
+                        69,
+                        0
+                    ],
+                    [
+                        255,
+                        255,
+                        255
+                    ]
+                ],
+                "last_emit_time": 1785524653.2963462,
+                "animation_timer": 0
+            },
+            {
+                "x": 174,
+                "y": 217,
+                "size": 20,
+                "shape": "triangle",
+                "color": [
+                    255,
+                    255,
+                    255
+                ],
+                "animation": "static",
+                "physics_effect": "none",
+                "physics_strength": 1.0,
+                "emit_rate": 0,
+                "emit_speed": 2.0,
+                "emit_size": 1,
+                "emit_colors": [],
+                "last_emit_time": 0,
+                "animation_timer": 0
+            }
+        ]
     }
 }

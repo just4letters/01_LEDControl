@@ -1,0 +1,20 @@
+{
+    "purple rain": {
+        "global_state": {
+            "gravity": -0.04,
+            "wind": 0.0,
+            "wind_swirl": 0.0,
+            "rain_rate": 5,
+            "max_particles": 2000,
+            "particle_size": 1,
+            "emitter_source": "sky",
+            "rain_color": [
+                255,
+                0,
+                255
+            ],
+            "rain_color_2": null
+        },
+        "obstacles": []
+    }
+}

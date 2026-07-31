@@ -7,6 +7,12 @@ and launches sub-processes clean of Pygame holds.
 """
 
 import os
+# 1. Mute redundant C++ info/warning logs from MediaPipe & TensorFlow
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # 0=All, 1=Filter INFO, 2=Filter INFO/WARNING, 3=Filter ERRORS
+os.environ["GLOG_minloglevel"] = "2"        # Silences MediaPipe internal C++ warnings
+
+# 2. Prevent macOS Objective-C duplicate library warnings (SDL2/Pygame)
+os.environ["OBJC_DISABLE_INITIALIZE_FORK_SAFETY"] = "YES"
 import subprocess
 import sys
 import threading
