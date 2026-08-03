@@ -104,15 +104,21 @@ class VoiceListener:
                                 if any(word in text_lower for word in kill_words):
                                     self.action_queue.put({"action": "quit"})
                                     return
+                                
+                                # 2. Universal Clear Screen
+                                clear_words = ["clear screen", "clear the screen", "wipe screen"]
+                                if any(word in text_lower for word in clear_words):
+                                    self.action_queue.put({"action": "clear_screen"})
+                                    continue # Skip AI/custom parser since we already resolved the command
 
-                                # 2. App-Specific Fast Path (Python parser)
+                                # 3. App-Specific Fast Path (Python parser)
                                 if self.custom_parser:
                                     custom_action = self.custom_parser(text_lower)
                                     if custom_action:
                                         self.action_queue.put(custom_action)
                                         continue
 
-                                # 3. Gemini Intent Resolution (Fallback-enabled)
+                                # 4. Gemini Intent Resolution (Fallback-enabled)
                                 if self.ai_context_prompt:
                                     ai_action = self._resolve_intent_with_gemini(text)
                                     if ai_action and ai_action.get("action") != "ignore":
@@ -120,7 +126,7 @@ class VoiceListener:
                                         self.action_queue.put(ai_action)
                                         continue
 
-                                # 4. Sentence Queue Push (For app-level workers)
+                                # 5. Sentence Queue Push (For app-level workers)
                                 while not self.sentence_queue.empty():
                                     try:
                                         self.sentence_queue.get_nowait()
