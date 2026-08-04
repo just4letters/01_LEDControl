@@ -63,6 +63,17 @@ from _pixel_canvas import PixelCanvas
 GAS_TARGET = 2200        # gas pixels kept alive below the barrier - a hard
                          # cap, not just a floor (see rejoin logic below) -
                          # so fresh particles keep getting spawned forever
+BIRTH_RATE_PER_FRAME = 8  # max new gas particles allowed to spawn in a single
+                          # frame. The population starts empty and fills in
+                          # toward GAS_TARGET through this same cap, so going
+                          # from 0 to 2200 takes ~4.6s of visibly bubbling in
+                          # from the bottom instead of the full population
+                          # existing (and drifting upward together) from the
+                          # very first frame.
+BIRTH_BAND = 6            # px - new particles spawn within this many px of
+                          # the very bottom edge of the screen, so gas reads
+                          # as being born at the floor rather than appearing
+                          # throughout the lower half.
 BUOYANCY = 0.012        # constant upward drift for gas particles
 JITTER = 0.10           # per-frame random velocity kick (turbulence)
 TURB_FREQ = 0.6         # wind-sway frequency
@@ -81,6 +92,13 @@ FAIL_RELIEF = 0.85          # pressure kept after a failed attempt (softer than 
 NEAR_BARRIER_BAND = 6    # px - counts as "pressed against the line" for give-up timing
 PRESS_GIVEUP_MIN = 120   # frames (~2s) minimum dwell at the line before giving up
 PRESS_GIVEUP_MAX = 300   # frames (~5s) maximum - randomized per particle so they don't sink in sync
+
+PRESS_FADE_FRAMES = 240  # ~4s - a pressed particle dims down over this many frames of
+                         # continuous contact, independent of the (longer) give-up timer, so a
+                         # crowd hitting the line reads as a slow-fading pulse rather than a
+                         # static glowing row or a flicker - it only lights back up if it leaks
+                         # through (becomes flutter) or gives up and sinks back into open gas
+PRESS_FADE_FLOOR = 0.08  # dimmest a still-pressed particle gets - never fully invisible
 
 FLUTTER_WOBBLE = 0.14
 FLUTTER_RISE = 0.02
@@ -112,9 +130,16 @@ LEAK_COLORS = [
 
 
 def new_gas_particle(w, h, barrier_y):
+    # Born at the very bottom edge (BIRTH_BAND), not spread through the
+    # whole lower half - combined with the throttled birth rate in main()
+    # (population starts empty and fills in gradually) this means gas
+    # visibly bubbles up from the floor over several seconds rather than
+    # a full population materializing everywhere at once and drifting
+    # upward together, which is what produced the old synchronized
+    # startup inrush against the barrier.
     return {
         "x": random.uniform(0, w - 1),
-        "y": random.uniform(barrier_y + 4, h - 1),
+        "y": random.uniform(h - BIRTH_BAND, h - 1),
         "vx": random.uniform(-0.05, 0.05),
         "vy": random.uniform(-0.05, 0.0),
         "phase": random.uniform(0, math.tau),
@@ -221,13 +246,18 @@ def update_gas_vectorized(gas, t, W, H, barrier_y, pressure):
         np.clip(pressure, None, 40.0, out=pressure)
 
     # been hovering at the line too long without finding a way through -
-    # give up and sink back into the mix
+    # give up and sink back into the mix. Sent to the same bottom-edge
+    # band new particles are born into (see new_gas_particle/BIRTH_BAND),
+    # not scattered anywhere from just-below-the-barrier down to the
+    # floor - otherwise every give-up reads as a fresh particle randomly
+    # materializing mid-screen, undercutting the "everything is born at
+    # the bottom" read the whole rest of the population relies on.
     near = ys <= (barrier_y + NEAR_BARRIER_BAND)
     press_f = np.where(near, press_f + 1, 0.0)
     giveup = near & (press_f > give_ups)
     n_giveup = int(np.count_nonzero(giveup))
     if n_giveup:
-        ys[giveup] = np.random.uniform(barrier_y + 20, H - 1, n_giveup)
+        ys[giveup] = np.random.uniform(H - BIRTH_BAND, H - 1, n_giveup)
         vys[giveup] = np.random.uniform(-0.05, 0.05, n_giveup)
         vxs[giveup] = np.random.uniform(-0.1, 0.1, n_giveup)
         press_f[giveup] = 0.0
@@ -250,6 +280,12 @@ def draw_gas_vectorized(canvas, gas, t):
     the leak check has already removed any particle that just crossed the
     barrier (and give-up/rejoin may have added others) - re-extracting
     keeps this in sync with whatever's actually still gas right now.
+
+    Particles that are currently pressed against the barrier (press_frames
+    > 0) fade out over PRESS_FADE_FRAMES of continuous contact - without
+    this, a large gas population piling up against the line every frame
+    reads as a second solid row sitting right under the real barrier row
+    instead of an active press that comes and goes.
     """
     n = len(gas)
     if n == 0:
@@ -257,11 +293,16 @@ def draw_gas_vectorized(canvas, gas, t):
     xs = np.fromiter((p["x"] for p in gas), dtype=np.float64, count=n)
     ys = np.fromiter((p["y"] for p in gas), dtype=np.float64, count=n)
     phases = np.fromiter((p["phase"] for p in gas), dtype=np.float64, count=n)
+    press_f = np.fromiter((p["press_frames"] for p in gas), dtype=np.float64, count=n)
 
     flick = (0.5 + 0.5 * np.sin(t * 2.0 + phases * 3.0)) * 0.4
     colors = np.empty((n, 3), dtype=np.float64)
     for i in range(3):
         colors[:, i] = GAS_COLOR[i] + (GAS_COLOR_HI[i] - GAS_COLOR[i]) * flick
+
+    fade = np.clip(press_f / PRESS_FADE_FRAMES, 0.0, 1.0)
+    brightness = 1.0 - fade * (1.0 - PRESS_FADE_FLOOR)
+    colors *= brightness[:, None]
     colors = colors.astype(np.uint8)
 
     xi = np.round(xs).astype(np.int64)
@@ -303,7 +344,8 @@ def main():
     W, H = canvas.width, canvas.height
     barrier_y = H // 2
 
-    gas = [new_gas_particle(W, H, barrier_y) for _ in range(GAS_TARGET)]
+    gas = []   # starts empty - fills in gradually via the throttled top-up
+               # below rather than the full target existing from frame one
     flutter = []
     stuck = []      # [{x, y, color, twinkle}]
     stuck_positions_by_color = {c: set() for c in LEAK_COLORS}  # mirrors `stuck`, split by color
@@ -319,16 +361,25 @@ def main():
         running = canvas.poll()
         t += 1 / 60
 
-        # keep the gas population topped up to EXACTLY the target - this is
-        # what keeps fresh (properly ~50% permeable) particles entering the
-        # system forever. If particles could pile up past the target (e.g.
-        # every flutter pixel that drifts back down unconditionally
+        # keep the gas population working toward EXACTLY the target - this
+        # is what keeps fresh (properly ~50% permeable) particles entering
+        # the system forever. If particles could pile up past the target
+        # (e.g. every flutter pixel that drifts back down unconditionally
         # rejoining gas), the top-up would stop firing and the population
         # would be sealed forever with whatever mix it happened to have at
         # that moment. Capped population -> leaks always free a slot ->
         # top-up always re-rolls a fresh one -> the leak rate stays alive
         # indefinitely instead of dying out.
-        while len(gas) < GAS_TARGET:
+        #
+        # Throttled to BIRTH_RATE_PER_FRAME per frame rather than filling
+        # the whole deficit in one shot: in steady state the deficit is
+        # usually 0 or 1 (a single leak/dissipation just happened) so this
+        # never matters, but at start-up the deficit is the entire
+        # GAS_TARGET - without the cap, all 2200 particles would spawn on
+        # frame one and drift upward together as a single synchronized
+        # wave.
+        deficit = GAS_TARGET - len(gas)
+        for _ in range(min(BIRTH_RATE_PER_FRAME, deficit)):
             gas.append(new_gas_particle(W, H, barrier_y))
 
         pressure *= PRESSURE_DECAY

@@ -39,11 +39,20 @@ you'll see it full-screened on your laptop rather than pixel-accurate.
   crossing attempt only succeeds some of the time - a fresh coin flip
   every time, not a fixed tag on a pixel, so the system can't randomly
   drain itself of everything able to leak. Pixels that pass come out dim
-  red, dim green, or dim blue; the barrier itself stays neutral gray, but
-  the exact crossing point sparks a bright flash of that color and fades.
-  Above the line, pixels feel a weak pull toward already-stuck pixels of
-  their own color, bounce off the left/right walls, and now also bounce
-  off any stuck pixel that *isn't* their color - a different color is a
+  red, dim green, or dim blue; the whole barrier line itself flashes to
+  that color and fades back to neutral gray after every successful
+  crossing. Gas pressing against the underside of the line dims slowly
+  the longer it sits there without getting through, so it reads as a
+  gradual, uneven glow that builds and fades in patches rather than a
+  static second row of light - it only brightens back up by leaking
+  through or giving up and sinking back into the open gas below. On
+  launch, the gas population itself starts empty and bubbles up from the
+  very bottom of the screen a few pixels at a time, filling in toward
+  full density over several seconds instead of the whole population
+  existing (and drifting upward together) from the first frame. Above
+  the line, pixels feel a weak pull toward already-stuck pixels of their
+  own color, bounce off the left/right walls, and now also bounce off
+  any stuck pixel that *isn't* their color - a different color is a
   solid obstacle, not a surface. The only ways to actually come to rest
   are the very top edge or a same-color neighbor, so growth sorts into
   three separate color territories that can end up deflecting each other
