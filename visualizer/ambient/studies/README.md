@@ -35,13 +35,24 @@ you'll see it full-screened on your laptop rather than pixel-accurate.
   an edge. Geometric constraint, fluid behavior - a first pass at that
   "starts structured, ends fluid" arc.
 
-- **02 - Selective Membrane**: same line and gas physics as 01, but each
+- **02 - Selective Membrane**: same line as 01, but the two halves are
+  built to feel like different kinds of thing. Below it the gas has no
+  horizontal freedom at all - each pixel is locked to the column it was
+  born in and can only rise and press - and it keeps strict time: every
+  two seconds a solid bar forms across the bottom of the screen and
+  spends itself into gas, losing exactly the pixel that just rose out of
+  it, hitting empty on the beat as the next bar snaps in. Above the
+  line, nothing keeps time at all - everything is loose. And each
   crossing attempt only succeeds some of the time - a fresh coin flip
   every time, not a fixed tag on a pixel, so the system can't randomly
   drain itself of everything able to leak. Pixels that pass come out dim
-  red, dim green, or dim blue; the whole barrier line itself flashes to
-  that color and fades back to neutral gray after every successful
-  crossing. Gas pressing against the underside of the line dims slowly
+  red, dim green, or dim blue, and every crossing is telegraphed before
+  it happens: the line rests dim white, and where something is about to
+  break through, three pixels glow brighter and brighter in the color
+  that's coming, bursting only at full saturation. Just a few can build
+  at once - a signal that fires constantly stops being a signal, so the
+  scarcity matters as much as the glow. Gas pressing against the
+  underside of the line dims slowly
   the longer it sits there without getting through, so it reads as a
   gradual, uneven glow that builds and fades in patches rather than a
   static second row of light - it only brightens back up by leaking
@@ -57,6 +68,28 @@ you'll see it full-screened on your laptop rather than pixel-accurate.
   are the very top edge or a same-color neighbor, so growth sorts into
   three separate color territories that can end up deflecting each other
   in fairly unpredictable ways.
+
+- **03 - Affinity**: same bar, same gas, same telegraphed membrane as 02,
+  but the top half never accumulates. Nothing sticks to anything, ever.
+  A pixel that crosses just drifts forever, blown around by a wide, slow,
+  swirling wind, and the only thing organizing the field is a preference -
+  drawn toward wherever there's more of its own color, pushed away from
+  concentrations of the other two, plus that same pull turned ninety
+  degrees so a gathering doesn't only contract, it turns. Both scale with
+  how much of your own kind is nearby: a lone pixel is barely affected, a
+  dense knot holds itself hard and visibly rotates as the weather carries
+  it. The affinity is computed in the wind's own frame of reference, so a
+  group travels intact instead of being sheared apart.
+  Groups form, drift as groups, deform, slide off each other, merge
+  and shed stragglers, and none of it is fixed: every so often a pixel
+  stops caring entirely, coasts off on its own momentum for a few
+  seconds, and only later re-develops a preference. That defection is
+  what keeps it from settling into three tidy blobs. Where 02 reads like
+  an anthill in reverse, this one reads like weather. The affinity is
+  computed from a coarse blurred density map per color rather than
+  pixel-to-pixel, so it costs the same at fifty pixels or five thousand,
+  and it groups more fluidly - clusters have soft edges and get pulled
+  toward each other as wholes.
 
 More studies land here as we explore other approaches (cellular-style
 pixel-death/birth, strict grid patterns dissolving into noise, particle

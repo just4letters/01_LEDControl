@@ -13,13 +13,28 @@ one chance and leave nothing behind able to leak - a dead end with no way
 back. A fresh roll on every attempt can't get stuck that way.
 
 The ones that do pass through cross a threshold that gives them an
-identity - they come out dim red, dim green, or dim blue (chosen at
-random the instant they leak), where before they were undifferentiated
-gray-blue gas. Every crossing is an event the whole line reacts to: the
-instant a pixel gets through, the entire barrier flashes to that pixel's
-color, then fades back to neutral gray.
+identity - they come out dim red, dim green, or dim blue, where before
+they were undifferentiated gray-blue gas.
 
-Above the line, pixels drift the same as before, and feel a weak pull
+A crossing is telegraphed, not instantaneous. The line rests at a dim,
+steady white; when a spot on it wins the right to let something through,
+three pixels there start glowing brighter and brighter in the color that
+is about to emerge, and the pixel only bursts out at full saturation.
+You can see it coming for over a second before it happens. Only a few
+places can be building at once, deliberately - a flash that fires
+constantly stops reading as an event, so scarcity is doing as much work
+here as the animation is.
+
+The two halves are meant to feel like different kinds of thing. Below
+the line the gas has no horizontal freedom at all - each pixel is locked
+to the column it was born in and can only rise and press - and it is fed
+on a strict two-second pulse: a solid bar forms across the bottom of the
+screen and spends itself into gas, losing exactly the pixel that just
+left it, hitting empty on the beat as the next bar snaps in. That's the
+bass line the rest of the piece sits on. Above the barrier, nothing
+keeps time at all: drift, wobble, deflection, accumulation.
+
+Above the line, pixels feel a weak pull
 toward whatever's already stuck in their own color - red drawn to red,
 green to green, blue to blue. The side walls bounce, like the gas does
 below the barrier - and so does anything not its own color: a
@@ -30,9 +45,9 @@ that means a pixel can get pulled straight toward its own kind and then
 deflected off someone else's color guarding the way - which can produce
 some genuinely unpredictable paths.
 
-PERFORMANCE NOTE: the gas below the barrier is a large, constant-size
-population (GAS_TARGET), updated and redrawn every single frame - at any
-reasonable GAS_TARGET this dwarfs every other cost in the simulation, so
+PERFORMANCE NOTE: the gas below the barrier is a large population (~2000),
+updated and redrawn every single frame - at that size it dwarfs every
+other cost in the simulation, so
 its physics and rendering are done with numpy (batch math over the whole
 population at once) instead of a plain Python per-particle loop. Flutter
 and the leak check stay plain Python since profiling showed they're not
@@ -60,23 +75,38 @@ if SCRIPT_DIR not in sys.path:
 from _pixel_canvas import PixelCanvas
 
 # --- tunables ----------------------------------------------------------
-GAS_TARGET = 2200        # gas pixels kept alive below the barrier - a hard
-                         # cap, not just a floor (see rejoin logic below) -
-                         # so fresh particles keep getting spawned forever
-BIRTH_RATE_PER_FRAME = 8  # max new gas particles allowed to spawn in a single
-                          # frame. The population starts empty and fills in
-                          # toward GAS_TARGET through this same cap, so going
-                          # from 0 to 2200 takes ~4.6s of visibly bubbling in
-                          # from the bottom instead of the full population
-                          # existing (and drifting upward together) from the
-                          # very first frame.
-BIRTH_BAND = 6            # px - new particles spawn within this many px of
-                          # the very bottom edge of the screen, so gas reads
-                          # as being born at the floor rather than appearing
-                          # throughout the lower half.
+# --- the bass line ------------------------------------------------------
+# All gas comes from a solid bar of pixels at the very bottom of the screen.
+# The bar forms whole, then dissolves over exactly BAR_PERIOD_FRAMES as its
+# pixels detach one by one and rise - the bar is literally spending itself to
+# make the gas, losing exactly the pixel that just left. It hits empty on the
+# last frame of the period and a fresh bar snaps in, which is the downbeat.
+#
+# Because the bar is the ONLY source, something has to be the sink or the
+# population runs away. The sink is the give-up timer at the barrier: a
+# particle that presses long enough without getting through is absorbed rather
+# than recirculated. That's invisible in practice - PRESS_FADE_FRAMES has
+# already faded it to near-black well before its earliest give-up - so it
+# reads as gas quietly exhausting itself against the membrane. Population is
+# now an emergent number (inflow x lifetime), not a set target.
+BAR_PERIOD_FRAMES = 180   # 3s at 60fps - one full form-and-dissolve cycle
+BAR_ROWS = 3              # height of the bar; each row is W pixels of fuel
+BAR_COLOR = (155, 170, 190)  # denser than the gas it releases - condensed, waiting
+
+GAS_SAFETY_CAP = 6000    # defensive only. Population should settle around 2000 on
+                         # its own; if it ever runs past this the bar keeps dissolving
+                         # on schedule but stops spawning, so a tuning mistake degrades
+                         # the look instead of grinding the framerate to a halt.
+GAS_HORIZONTAL_DRIFT = False  # when False, gas below the barrier moves ONLY vertically -
+                              # every particle is locked to the column it was born in and
+                              # rises in a straight line. The half above the barrier stays
+                              # loose and organic; this makes the half below read as
+                              # mechanical by contrast - ranks of pixels feeding the line
+                              # rather than a drifting cloud. Flip to True for the old
+                              # swaying-cloud behavior.
 BUOYANCY = 0.012        # constant upward drift for gas particles
 JITTER = 0.10           # per-frame random velocity kick (turbulence)
-TURB_FREQ = 0.6         # wind-sway frequency
+TURB_FREQ = 0.6         # wind-sway frequency (horizontal drift only)
 TURB_AMP = 0.05
 DAMPING = 0.985         # velocity damping so speeds settle rather than run away
 
@@ -90,14 +120,17 @@ PERMEABLE_FRACTION = 0.5   # chance any given crossing ATTEMPT actually succeeds
 FAIL_RELIEF = 0.85          # pressure kept after a failed attempt (softer than LEAK_RESET)
 
 NEAR_BARRIER_BAND = 6    # px - counts as "pressed against the line" for give-up timing
-PRESS_GIVEUP_MIN = 120   # frames (~2s) minimum dwell at the line before giving up
-PRESS_GIVEUP_MAX = 300   # frames (~5s) maximum - randomized per particle so they don't sink in sync
+PRESS_GIVEUP_MIN = 250   # frames (~4.2s) minimum dwell at the line before being absorbed
+PRESS_GIVEUP_MAX = 400   # frames (~6.7s) maximum - randomized per particle so they don't go in sync
+                         # NOTE: both are deliberately longer than PRESS_FADE_FRAMES, so a
+                         # particle has always faded to PRESS_FADE_FLOOR before it can be
+                         # absorbed. That's what makes removal invisible rather than a pop.
 
 PRESS_FADE_FRAMES = 240  # ~4s - a pressed particle dims down over this many frames of
-                         # continuous contact, independent of the (longer) give-up timer, so a
-                         # crowd hitting the line reads as a slow-fading pulse rather than a
-                         # static glowing row or a flicker - it only lights back up if it leaks
-                         # through (becomes flutter) or gives up and sinks back into open gas
+                         # continuous contact, so a crowd hitting the line reads as a slow
+                         # fading pulse rather than a static glowing row. It only lights back
+                         # up by leaking through (becoming flutter); otherwise this fade is
+                         # effectively its death animation - see the give-up note above.
 PRESS_FADE_FLOOR = 0.08  # dimmest a still-pressed particle gets - never fully invisible
 
 FLUTTER_WOBBLE = 0.14
@@ -115,12 +148,30 @@ ATTRACTION_REFRESH_FRAMES = 20  # re-pick the nearest same-color target this oft
                                  # is the one part of the sim whose cost scales with total stuck
                                  # pixels rather than the (small, bounded) flutter count
 
-BARRIER_GLOW_DECAY = 0.95   # per-frame decay of the whole-barrier color flash after a crossing
+# --- charging crossings -------------------------------------------------
+# A crossing is telegraphed rather than instantaneous. When a column earns an
+# attempt (enough pressure) and wins its coin flip, it doesn't leak straight
+# away - it starts CHARGING. A small window of barrier pixels centered on that
+# column brightens toward the color the pixel is going to come out as, and only
+# when it reaches full saturation does the pixel actually burst through. The
+# barrier itself stays a dim, steady white the rest of the time.
+#
+# Scarcity is the whole point: a flash that fires constantly stops reading as
+# an event. MAX_CONCURRENT_CHARGES hard-caps how many places can be building at
+# once regardless of how much pressure exists, which is what keeps each one
+# legible as its own small piece of drama.
+CHARGE_FRAMES = 100          # ~1.7s from first glimmer to breakthrough
+MAX_CONCURRENT_CHARGES = 3   # how many places on the line can be building at once
+CHARGE_HALF_WIDTH = 1        # px either side of the crossing column (1 -> 3 px total)
+CHARGE_NEIGHBOR_FALLOFF = 0.55  # how bright the flanking pixels get vs the center
+CHARGE_MIN_SEPARATION = 6    # px - don't start a new charge this close to an existing one,
+                             # so two charges never visually merge into one smear
+CHARGE_EASE = 2.2            # >1 makes the glow start slow and rush at the end (anticipation);
+                             # 1.0 would be a flat linear ramp
 
 GAS_COLOR = (35, 45, 60)          # neutral gray-blue - undifferentiated, hasn't passed through yet
 GAS_COLOR_HI = (60, 75, 95)       # brighter flicker variant
-BARRIER_COLOR = (150, 150, 150)
-BARRIER_FLASH = (255, 255, 255)
+BARRIER_COLOR = (70, 70, 70)      # dim, steady white - the line's resting state
 
 LEAK_COLORS = [
     (50, 0, 0),   # dim red
@@ -128,24 +179,46 @@ LEAK_COLORS = [
     (0, 0, 60),   # dim blue
 ]
 
+# Saturated counterparts of LEAK_COLORS, by index - what the barrier charges up
+# TO. The leak colors themselves are deliberately dim (they have to sit quietly
+# above the line for a long time), which is far too dark to read as a building
+# threat on the barrier, so the charge glow uses these instead.
+CHARGE_GLOW_COLORS = [
+    (255, 40, 40),   # red
+    (40, 255, 40),   # green
+    (60, 90, 255),   # blue
+]
 
-def new_gas_particle(w, h, barrier_y):
-    # Born at the very bottom edge (BIRTH_BAND), not spread through the
-    # whole lower half - combined with the throttled birth rate in main()
-    # (population starts empty and fills in gradually) this means gas
-    # visibly bubbles up from the floor over several seconds rather than
-    # a full population materializing everywhere at once and drifting
-    # upward together, which is what produced the old synchronized
-    # startup inrush against the barrier.
+
+def new_gas_particle(x, y):
+    """A pixel that has just detached from the bar at exactly (x, y)."""
     return {
-        "x": random.uniform(0, w - 1),
-        "y": random.uniform(h - BIRTH_BAND, h - 1),
-        "vx": random.uniform(-0.05, 0.05),
+        "x": float(x),
+        "y": float(y),
+        "vx": random.uniform(-0.05, 0.05) if GAS_HORIZONTAL_DRIFT else 0.0,
         "vy": random.uniform(-0.05, 0.0),
         "phase": random.uniform(0, math.tau),
         "press_frames": 0,
         "give_up_after": random.randint(PRESS_GIVEUP_MIN, PRESS_GIVEUP_MAX),
     }
+
+
+def new_bar(W, H):
+    """A full bar of fuel at the bottom of the screen, as a drain-order list.
+
+    Built so that pop()-ing off the end drains the TOP row first and the
+    bottom row last: the bar erodes downward from the face nearest the gas,
+    which reads as being consumed rather than randomly decaying. Within a row
+    the order is shuffled so it dissolves in speckle instead of sweeping left
+    to right.
+    """
+    ordered = []
+    for row in range(BAR_ROWS):   # row 0 is the bottom-most line of pixels
+        y = H - 1 - row
+        row_cells = [(x, y) for x in range(W)]
+        random.shuffle(row_cells)
+        ordered.extend(row_cells)
+    return ordered   # last element = top row = first to leave
 
 
 def check_contact(x, y, color, stuck_positions_by_color):
@@ -201,7 +274,7 @@ def update_gas_vectorized(gas, t, W, H, barrier_y, pressure):
     """
     n = len(gas)
     if n == 0:
-        return
+        return None
 
     xs = np.fromiter((p["x"] for p in gas), dtype=np.float64, count=n)
     ys = np.fromiter((p["y"] for p in gas), dtype=np.float64, count=n)
@@ -212,24 +285,28 @@ def update_gas_vectorized(gas, t, W, H, barrier_y, pressure):
     give_ups = np.fromiter((p["give_up_after"] for p in gas), dtype=np.float64, count=n)
 
     # turbulence + jitter + buoyancy
-    vxs += np.sin(t * TURB_FREQ + phases) * TURB_AMP * 0.02
-    vxs += np.random.uniform(-JITTER, JITTER, n) * 0.02
     vys += np.random.uniform(-JITTER, JITTER, n) * 0.015
     vys -= BUOYANCY
-
-    vxs *= DAMPING
     vys *= DAMPING
-
-    xs += vxs
     ys += vys
 
-    # side walls: bounce
-    left = xs < 0
-    xs[left] = 0.0
-    vxs[left] *= -0.5
-    right = xs > (W - 1)
-    xs[right] = float(W - 1)
-    vxs[right] *= -0.5
+    if GAS_HORIZONTAL_DRIFT:
+        vxs += np.sin(t * TURB_FREQ + phases) * TURB_AMP * 0.02
+        vxs += np.random.uniform(-JITTER, JITTER, n) * 0.02
+        vxs *= DAMPING
+        xs += vxs
+
+        # side walls: bounce
+        left = xs < 0
+        xs[left] = 0.0
+        vxs[left] *= -0.5
+        right = xs > (W - 1)
+        xs[right] = float(W - 1)
+        vxs[right] *= -0.5
+    else:
+        # locked to its birth column: no sway, no jitter, no wall contact.
+        # x is set once at spawn (already inside [0, W-1]) and never moves.
+        vxs[:] = 0.0
 
     # floor: bounce
     floor = ys > (H - 1)
@@ -245,23 +322,15 @@ def update_gas_vectorized(gas, t, W, H, barrier_y, pressure):
         np.add.at(pressure, hit_cols, PRESSURE_GAIN)
         np.clip(pressure, None, 40.0, out=pressure)
 
-    # been hovering at the line too long without finding a way through -
-    # give up and sink back into the mix. Sent to the same bottom-edge
-    # band new particles are born into (see new_gas_particle/BIRTH_BAND),
-    # not scattered anywhere from just-below-the-barrier down to the
-    # floor - otherwise every give-up reads as a fresh particle randomly
-    # materializing mid-screen, undercutting the "everything is born at
-    # the bottom" read the whole rest of the population relies on.
+    # been pressing at the line too long without finding a way through -
+    # absorbed. This is the population's only sink (the bar at the bottom is
+    # its only source), which is what keeps the count stable without a hard
+    # cap. It isn't visible as a disappearance: PRESS_GIVEUP_MIN is longer
+    # than PRESS_FADE_FRAMES, so anything eligible to be absorbed has already
+    # faded to PRESS_FADE_FLOOR and is barely lit by the time it goes.
     near = ys <= (barrier_y + NEAR_BARRIER_BAND)
     press_f = np.where(near, press_f + 1, 0.0)
-    giveup = near & (press_f > give_ups)
-    n_giveup = int(np.count_nonzero(giveup))
-    if n_giveup:
-        ys[giveup] = np.random.uniform(H - BIRTH_BAND, H - 1, n_giveup)
-        vys[giveup] = np.random.uniform(-0.05, 0.05, n_giveup)
-        vxs[giveup] = np.random.uniform(-0.1, 0.1, n_giveup)
-        press_f[giveup] = 0.0
-        give_ups[giveup] = np.random.randint(PRESS_GIVEUP_MIN, PRESS_GIVEUP_MAX + 1, n_giveup)
+    absorbed = near & (press_f > give_ups)
 
     for i, p in enumerate(gas):
         p["x"] = xs[i]
@@ -270,6 +339,8 @@ def update_gas_vectorized(gas, t, W, H, barrier_y, pressure):
         p["vy"] = vys[i]
         p["press_frames"] = press_f[i]
         p["give_up_after"] = give_ups[i]
+
+    return absorbed
 
 
 def draw_gas_vectorized(canvas, gas, t):
@@ -344,16 +415,21 @@ def main():
     W, H = canvas.width, canvas.height
     barrier_y = H // 2
 
-    gas = []   # starts empty - fills in gradually via the throttled top-up
-               # below rather than the full target existing from frame one
+    gas = []   # starts empty - the first bar has to dissolve before there's
+               # any gas at all, so the opening builds instead of inrushing
     flutter = []
     stuck = []      # [{x, y, color, twinkle}]
     stuck_positions_by_color = {c: set() for c in LEAK_COLORS}  # mirrors `stuck`, split by color
     pressure = np.zeros(W, dtype=np.float64)
     stuck_render_cache = {"n": -1}
 
-    barrier_glow_color = BARRIER_COLOR
-    barrier_glow = 0.0   # 0 = normal gray, 1 = fully the color of whatever just crossed
+    # crossings currently building up on the line, each
+    # {x, color_index, progress} with progress running 0 -> 1
+    charges = []
+
+    bar = new_bar(W, H)      # remaining fuel pixels, in drain order
+    bar_total = len(bar)
+    bar_frame = 0            # frames elapsed in the current bar's cycle
 
     t = 0.0
     running = True
@@ -361,59 +437,87 @@ def main():
         running = canvas.poll()
         t += 1 / 60
 
-        # keep the gas population working toward EXACTLY the target - this
-        # is what keeps fresh (properly ~50% permeable) particles entering
-        # the system forever. If particles could pile up past the target
-        # (e.g. every flutter pixel that drifts back down unconditionally
-        # rejoining gas), the top-up would stop firing and the population
-        # would be sealed forever with whatever mix it happened to have at
-        # that moment. Capped population -> leaks always free a slot ->
-        # top-up always re-rolls a fresh one -> the leak rate stays alive
-        # indefinitely instead of dying out.
-        #
-        # Throttled to BIRTH_RATE_PER_FRAME per frame rather than filling
-        # the whole deficit in one shot: in steady state the deficit is
-        # usually 0 or 1 (a single leak/dissipation just happened) so this
-        # never matters, but at start-up the deficit is the entire
-        # GAS_TARGET - without the cap, all 2200 particles would spawn on
-        # frame one and drift upward together as a single synchronized
-        # wave.
-        deficit = GAS_TARGET - len(gas)
-        for _ in range(min(BIRTH_RATE_PER_FRAME, deficit)):
-            gas.append(new_gas_particle(W, H, barrier_y))
+        # ---- the bass line: the bar spends itself into gas ----
+        # Emission is paced off elapsed time rather than a fixed per-frame
+        # count, so the bar lands on exactly empty at the end of the period
+        # no matter how the integer division falls. Every pixel that leaves
+        # the bar becomes the gas particle that rises out of that same spot.
+        bar_frame += 1
+        should_remain = int(round(bar_total * (1.0 - bar_frame / BAR_PERIOD_FRAMES)))
+        should_remain = max(0, should_remain)
+        while len(bar) > should_remain:
+            bx, by = bar.pop()
+            if len(gas) < GAS_SAFETY_CAP:
+                gas.append(new_gas_particle(bx, by))
+
+        if bar_frame >= BAR_PERIOD_FRAMES:
+            # downbeat - a whole new bar snaps in
+            bar = new_bar(W, H)
+            bar_total = len(bar)
+            bar_frame = 0
 
         pressure *= PRESSURE_DECAY
-        barrier_glow *= BARRIER_GLOW_DECAY
 
         # ---- gas physics: buoyant, turbulent, bounded (vectorized) ----
-        update_gas_vectorized(gas, t, W, H, barrier_y, pressure)
+        absorbed = update_gas_vectorized(gas, t, W, H, barrier_y, pressure)
+        if absorbed is not None and absorbed.any():
+            gas = [p for i, p in enumerate(gas) if not absorbed[i]]
 
-        # ---- leak check: pressure earns an attempt, then a coin flip ----
-        for x in range(W):
-            if pressure[x] <= 15.0:
+        # ---- leak check: pressure earns an attempt, then a coin flip, then
+        # the winner starts CHARGING rather than crossing immediately ----
+        if len(charges) < MAX_CONCURRENT_CHARGES:
+            for x in range(W):
+                if pressure[x] <= 15.0:
+                    continue
+                # don't stack a new charge on top of one already building nearby
+                if any(abs(c["x"] - x) < CHARGE_MIN_SEPARATION for c in charges):
+                    continue
+                prob = 1 - math.exp(-LEAK_K * pressure[x] * pressure[x])
+                if random.random() < prob:
+                    # only worth starting if there's actually gas here to send through
+                    has_candidate = any(
+                        abs(p["x"] - x) < 2 and p["y"] <= barrier_y + 3 for p in gas
+                    )
+                    if has_candidate:
+                        if random.random() < PERMEABLE_FRACTION:
+                            charges.append({
+                                "x": x,
+                                "color_index": random.randrange(len(LEAK_COLORS)),
+                                "progress": 0.0,
+                            })
+                            if len(charges) >= MAX_CONCURRENT_CHARGES:
+                                break
+                        else:
+                            # pressed hard enough to try, but this attempt was
+                            # one of the failures that doesn't make it through
+                            pressure[x] *= FAIL_RELIEF
+
+        # ---- advance charges; a full one bursts a pixel through ----
+        still_charging = []
+        for ch in charges:
+            ch["progress"] += 1.0 / CHARGE_FRAMES
+            if ch["progress"] < 1.0:
+                still_charging.append(ch)
                 continue
-            prob = 1 - math.exp(-LEAK_K * pressure[x] * pressure[x])
-            if random.random() < prob:
-                candidates = [p for p in gas if abs(p["x"] - x) < 2 and p["y"] <= barrier_y + 3]
-                if candidates:
-                    if random.random() < PERMEABLE_FRACTION:
-                        chosen = random.choice(candidates)
-                        gas = [g for g in gas if g is not chosen]
-                        chosen["y"] = barrier_y - 2
-                        chosen["vy"] = -random.uniform(0.15, 0.35)
-                        chosen["vx"] *= 2.0
-                        chosen["color"] = random.choice(LEAK_COLORS)
-                        chosen["attract_target"] = None
-                        chosen["attract_refresh_in"] = 0  # pick a target on its very first flutter frame
-                        flutter.append(chosen)
-                        pressure[x] *= LEAK_RESET
-                        # the whole line reacts to what just got through
-                        barrier_glow_color = chosen["color"]
-                        barrier_glow = 1.0
-                    else:
-                        # pressed hard enough to try, but this attempt was
-                        # one of the failures that doesn't make it through
-                        pressure[x] *= FAIL_RELIEF
+
+            # fully saturated - this is the moment the pixel comes through
+            x = ch["x"]
+            candidates = [p for p in gas if abs(p["x"] - x) < 2 and p["y"] <= barrier_y + 3]
+            if candidates:
+                chosen = random.choice(candidates)
+                gas = [g for g in gas if g is not chosen]
+                chosen["y"] = barrier_y - 2
+                chosen["vy"] = -random.uniform(0.15, 0.35)
+                chosen["vx"] *= 2.0
+                chosen["color"] = LEAK_COLORS[ch["color_index"]]
+                chosen["attract_target"] = None
+                chosen["attract_refresh_in"] = 0  # pick a target on its very first flutter frame
+                flutter.append(chosen)
+                pressure[x] *= LEAK_RESET
+            # if the gas happened to clear out of this column during the
+            # charge, the build-up simply fizzles - the glow ends and nothing
+            # crosses. Rare, and honest: the pressure wasn't there after all.
+        charges = still_charging
 
         # ---- flutter physics: wobble, decaying rise, then stick on contact ----
         still_flying = []
@@ -463,15 +567,14 @@ def main():
                 stick_here = True
             elif p["y"] >= barrier_y:
                 # drifted back down onto the line - rejoin the gas below it
-                # (only if there's room - see the population note above),
-                # losing its color identity in the process
+                # losing its color identity in the process. No cap check
+                # needed any more - flutter is small and rare, and the
+                # absorb-at-the-barrier sink handles population on its own.
                 p["y"] = barrier_y + 1
                 p["vy"] = 0
                 p["press_frames"] = 0
                 p.pop("color", None)
-                if len(gas) < GAS_TARGET:
-                    gas.append(p)
-                # else: dissipates - the slot's already been backfilled
+                gas.append(p)
                 continue
             else:
                 contact = check_contact(p["x"], p["y"], p["color"], stuck_positions_by_color)
@@ -496,15 +599,28 @@ def main():
         # ---- draw ----
         canvas.clear((0, 0, 0))
 
+        # the line's resting state: dim, steady, uniform. It no longer reacts
+        # to pressure at all - pressure sits near its cap on almost every
+        # column almost all the time, so a pressure-driven flash was pinned
+        # bright permanently and read as a solid glowing bar rather than as
+        # anything happening.
         for x in range(W):
-            if pressure[x] > 0.5:
-                flash = min(1.0, pressure[x] / 20.0)
-                color = lerp_color(BARRIER_COLOR, BARRIER_FLASH, flash)
-            else:
-                color = BARRIER_COLOR
-            if barrier_glow > 0.01:
-                color = lerp_color(color, barrier_glow_color, barrier_glow)
-            canvas.set_px(x, barrier_y, color)
+            canvas.set_px(x, barrier_y, BARRIER_COLOR)
+
+        # the only thing that lights the line is an imminent crossing: a small
+        # window brightening toward the color that's about to come through
+        for ch in charges:
+            glow = CHARGE_GLOW_COLORS[ch["color_index"]]
+            eased = ch["progress"] ** CHARGE_EASE
+            for dx in range(-CHARGE_HALF_WIDTH, CHARGE_HALF_WIDTH + 1):
+                xx = ch["x"] + dx
+                if 0 <= xx < W:
+                    falloff = 1.0 if dx == 0 else CHARGE_NEIGHBOR_FALLOFF
+                    canvas.set_px(xx, barrier_y, lerp_color(BARRIER_COLOR, glow, eased * falloff))
+
+        # the bar of remaining fuel at the bottom, eroding in real time
+        for (bx, by) in bar:
+            canvas.set_px(bx, by, BAR_COLOR)
 
         draw_gas_vectorized(canvas, gas, t)
 
