@@ -130,14 +130,35 @@ Blocking / open on that post:
 - Root `README.md` as a hub.
 
 **Candidate subjects for future posts:**
+- **Ambient Studies 03 + 04 (Affinity / Accretion) — strongest material, probably
+  ONE post not two.** The arc writes itself: built a field where pixels drift
+  forever and group by color, realized nothing on screen explained why anything ever
+  left, fixed it by making the exit visible (a black hole that bends the wind into an
+  inward spiral instead of applying a gravity force). Keepers: damping was silently
+  capping everything at 53% of wind speed until the physics moved into the wind's own
+  reference frame; grouping via a coarse blurred density map so cost is flat from 50
+  pixels to 5000; the "stops caring" defection rule that keeps the field from
+  collapsing into three tidy blobs; and the `CLUMP_GAIN` saturation trap, where
+  doubling the population silently flattened the loner-vs-clump distinction into
+  uniform mush. See JOURNAL 2026-08-05.
 - Ambient Study 02 (Selective Membrane) — a membrane that only lets some pixels
-  through; they gain a color by crossing; above the line they can only rest against
-  their own color and bounce off everything else, which sorts the space into color
-  territories nobody designed. Good story, includes a genuinely interesting bug
-  (an absorbing state where the system could permanently seal itself if permeability
-  was a fixed per-particle tag instead of a fresh roll each attempt).
+  through, and now *telegraphs* it: the line rests dim white and a crossing builds
+  visibly across three pixels before bursting at full saturation. Pixels gain a color
+  by crossing; above the line they can only rest against their own color and bounce
+  off everything else, which sorts the space into color territories nobody designed.
+  Includes a genuinely interesting bug (an absorbing state where the system could
+  permanently seal itself if permeability was a fixed per-particle tag instead of a
+  fresh roll each attempt).
+- The bass line, shared by 02/03/04 — a fuel bar that forms at the bottom, spends
+  itself into gas losing exactly the pixel that just rose out of it, then *rests* on a
+  bare floor. The rest is the good bit: it sends a gap climbing through the rising
+  stream that widens as it goes (measured 16px → 32px), because the pixels ahead of it
+  are still accelerating. It's what proves the gas comes FROM the bar.
+- **Measuring instead of eyeballing** — possible short methodology piece. Repeatedly
+  the measurement contradicted the obvious guess: raising wind speed made things move
+  *slower*; widening the swirls was what actually helped; clustering had to be checked
+  against a shuffled-color baseline to prove it wasn't just a density artifact.
 - Face / nose / blink tracking as input.
-- The ambient studies generally — no interaction, pure generative.
 
 ---
 

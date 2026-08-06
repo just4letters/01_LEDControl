@@ -39,10 +39,15 @@ you'll see it full-screened on your laptop rather than pixel-accurate.
   built to feel like different kinds of thing. Below it the gas has no
   horizontal freedom at all - each pixel is locked to the column it was
   born in and can only rise and press - and it keeps strict time: every
-  two seconds a solid bar forms across the bottom of the screen and
+  three seconds a solid bar forms across the bottom of the screen and
   spends itself into gas, losing exactly the pixel that just rose out of
-  it, hitting empty on the beat as the next bar snaps in. Above the
-  line, nothing keeps time at all - everything is loose. And each
+  it. Then it rests - three quarters of a second where the floor is bare
+  and nothing at all is born - before the next bar snaps in whole. That
+  silence is what makes the rhythm legible: it puts a gap in the rising
+  stream that climbs the whole lower half, widening as it goes because
+  the pixels ahead of it are still picking up speed, and it's the thing
+  that proves the gas is coming FROM the bar rather than just
+  appearing. Above the line, nothing keeps time at all. And each
   crossing attempt only succeeds some of the time - a fresh coin flip
   every time, not a fixed tag on a pixel, so the system can't randomly
   drain itself of everything able to leak. Pixels that pass come out dim
@@ -90,6 +95,21 @@ you'll see it full-screened on your laptop rather than pixel-accurate.
   pixel-to-pixel, so it costs the same at fifty pixels or five thousand,
   and it groups more fluidly - clusters have soft edges and get pulled
   toward each other as wholes.
+
+- **04 - Accretion**: 03 with a reason to disappear. In 03 the drifting
+  pixels simply timed out - it balanced the books but nothing on screen
+  explained it. Here they have no lifespan at all, and the only way out
+  is a black hole: every sixth bar, one opens at a random spot up top.
+  It's a single pixel, almost always dark, and what it does is bend the
+  wind - inside its reach the prevailing flow is replaced by an inward
+  spiral, so anything near it stops being carried by the weather and
+  starts falling instead. Pixels wind in, accelerating, and vanish. It
+  flares each time it takes one, which is the only thing that gives it
+  away, then closes after a few seconds until the next opens elsewhere.
+  Population becomes a real equilibrium rather than a set number, and it
+  drifts: a hole that opens inside a clump takes ninety pixels, one that
+  opens in a gap takes two, so the field visibly fills up and gets
+  thinned again over minutes.
 
 More studies land here as we explore other approaches (cellular-style
 pixel-death/birth, strict grid patterns dissolving into noise, particle

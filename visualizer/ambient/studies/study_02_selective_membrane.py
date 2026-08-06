@@ -28,11 +28,14 @@ here as the animation is.
 The two halves are meant to feel like different kinds of thing. Below
 the line the gas has no horizontal freedom at all - each pixel is locked
 to the column it was born in and can only rise and press - and it is fed
-on a strict two-second pulse: a solid bar forms across the bottom of the
-screen and spends itself into gas, losing exactly the pixel that just
-left it, hitting empty on the beat as the next bar snaps in. That's the
-bass line the rest of the piece sits on. Above the barrier, nothing
-keeps time at all: drift, wobble, deflection, accumulation.
+on a strict three-second pulse: a solid bar forms across the bottom of
+the screen and spends itself into gas, losing exactly the pixel that
+just left it, then rests on a bare floor for three quarters of a second
+before the next bar snaps in whole. That rest is what makes the pulse
+legible - it sends a gap climbing up through the rising stream, widening
+as it goes. That's the bass line the rest of the piece sits on. Above
+the barrier, nothing keeps time at all: drift, wobble, deflection,
+accumulation.
 
 Above the line, pixels feel a weak pull
 toward whatever's already stuck in their own color - red drawn to red,
@@ -89,7 +92,15 @@ from _pixel_canvas import PixelCanvas
 # already faded it to near-black well before its earliest give-up - so it
 # reads as gas quietly exhausting itself against the membrane. Population is
 # now an emergent number (inflow x lifetime), not a set target.
-BAR_PERIOD_FRAMES = 180   # 3s at 60fps - one full form-and-dissolve cycle
+# The cycle is DRAIN then REST. The bar spends all of itself over the drain,
+# then the bottom of the screen is empty and nothing is emitted at all until
+# the next bar snaps in whole. That silence is the point: it puts a visible
+# gap in the rising stream, which is what proves to anyone watching that the
+# gas is coming FROM the bar rather than just appearing. The gap also grows
+# as it climbs - particles are still accelerating, so the ones released just
+# before the rest keep pulling away from the ones released just after it.
+BAR_DRAIN_FRAMES = 135    # 2.25s of the bar dissolving into gas
+BAR_REST_FRAMES = 45      # 0.75s of nothing at all - the rest in the bar
 BAR_ROWS = 3              # height of the bar; each row is W pixels of fuel
 BAR_COLOR = (155, 170, 190)  # denser than the gas it releases - condensed, waiting
 
@@ -443,14 +454,16 @@ def main():
         # no matter how the integer division falls. Every pixel that leaves
         # the bar becomes the gas particle that rises out of that same spot.
         bar_frame += 1
-        should_remain = int(round(bar_total * (1.0 - bar_frame / BAR_PERIOD_FRAMES)))
-        should_remain = max(0, should_remain)
-        while len(bar) > should_remain:
-            bx, by = bar.pop()
-            if len(gas) < GAS_SAFETY_CAP:
-                gas.append(new_gas_particle(bx, by))
+        if bar_frame <= BAR_DRAIN_FRAMES:
+            should_remain = int(round(bar_total * (1.0 - bar_frame / BAR_DRAIN_FRAMES)))
+            should_remain = max(0, should_remain)
+            while len(bar) > should_remain:
+                bx, by = bar.pop()
+                if len(gas) < GAS_SAFETY_CAP:
+                    gas.append(new_gas_particle(bx, by))
+        # else: the rest. `bar` is empty, so nothing draws and nothing is born.
 
-        if bar_frame >= BAR_PERIOD_FRAMES:
+        if bar_frame >= BAR_DRAIN_FRAMES + BAR_REST_FRAMES:
             # downbeat - a whole new bar snaps in
             bar = new_bar(W, H)
             bar_total = len(bar)

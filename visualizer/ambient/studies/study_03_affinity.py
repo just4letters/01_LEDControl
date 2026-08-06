@@ -3,9 +3,9 @@ Study 03 - Affinity
 ===================
 
 A variation on Study 02 (Selective Membrane). Everything below the line is
-identical: the same three-second bar of fuel dissolving into gas at the
-bottom, the same columns of pixels rising and pressing, the same membrane
-that telegraphs a crossing before it happens.
+identical: the same three-second bar of fuel dissolving into gas and then
+resting on a bare floor, the same columns of pixels rising and pressing,
+the same membrane that telegraphs a crossing before it happens.
 
 What changes is what a pixel does once it's through.
 
@@ -69,7 +69,15 @@ if SCRIPT_DIR not in sys.path:
 from _pixel_canvas import PixelCanvas
 
 # --- the bass line (identical to Study 02) ------------------------------
-BAR_PERIOD_FRAMES = 180   # 3s at 60fps - one full form-and-dissolve cycle
+# The cycle is DRAIN then REST. The bar spends all of itself over the drain,
+# then the bottom of the screen is empty and nothing is emitted at all until
+# the next bar snaps in whole. That silence is the point: it puts a visible
+# gap in the rising stream, which is what proves to anyone watching that the
+# gas is coming FROM the bar rather than just appearing. The gap also grows
+# as it climbs - particles are still accelerating, so the ones released just
+# before the rest keep pulling away from the ones released just after it.
+BAR_DRAIN_FRAMES = 110    # 2.25s of the bar dissolving into gas
+BAR_REST_FRAMES = 55      # 0.75s of nothing at all - the rest in the bar
 BAR_ROWS = 3              # height of the bar; each row is W pixels of fuel
 BAR_COLOR = (155, 170, 190)
 
@@ -118,8 +126,15 @@ SEPARATION_BLUR = 1       # blur passes on the all-colors map used for personal 
 # a lone pixel is barely pulled at all and a dense knot holds itself together
 # hard. CLUMP_GAIN converts "smoothed same-color pixels per cell" into that
 # multiplier; CLUMP_MAX stops a very dense knot from becoming a black hole.
-CLUMP_GAIN = 3.0
+CLUMP_GAIN = 1.4
 CLUMP_MAX = 2.0
+# CLUMP_GAIN has to be re-tuned whenever the population changes a lot. It
+# converts local density into the mass multiplier, and CLUMP_MAX caps that -
+# so if the field gets denser without this coming down, nearly every pixel
+# ends up pinned at the cap, every pixel gets identical maximum cohesion, and
+# the whole "a loner barely feels it, a knot holds hard" distinction
+# disappears into uniform mush. Rough guide: 3.0 at ~450 drifters, 1.4 at
+# ~850, 0.7 at ~2000. Halve it whenever you double the population.
 
 COHESION_STRENGTH = 0.013     # pull toward more of your own color, x clump factor
 SPIN_STRENGTH = 0.011         # push at right angles to that pull - makes clumps turn
@@ -167,8 +182,12 @@ WANDER_KICK = 0.35         # impulse applied the moment it breaks away
 # Lifespan. Nothing sticks, so nothing else would ever remove a drifting
 # pixel and the top half would fill up forever. A long life plus a slow fade
 # gives steady turnover without anything visibly popping out of existence.
-DRIFT_LIFE_MIN = 6000     # 100s
-DRIFT_LIFE_MAX = 10200    # 170s
+DRIFT_LIFE_MIN = 12000    # 200s
+DRIFT_LIFE_MAX = 20400    # 340s - population is crossings/sec x mean lifespan, and the
+                          # crossing rate is already pinned near its ceiling, so lifespan is
+                          # the only lever that adds pixels without making the membrane
+                          # busier. Doubling these doubles the field. See CLUMP_GAIN above,
+                          # which has to come down to match.
 DRIFT_FADE_FRAMES = 240   # 4s of fade at the end of life
 DRIFT_SHIMMER = 0.18      # gentle per-pixel brightness wobble
 
@@ -604,15 +623,17 @@ def main():
         running = canvas.poll()
         t += 1 / 60
 
-        # ---- the bass line: the bar spends itself into gas ----
+        # ---- the bass line: the bar spends itself into gas, then rests ----
         bar_frame += 1
-        should_remain = max(0, int(round(bar_total * (1.0 - bar_frame / BAR_PERIOD_FRAMES))))
-        while len(bar) > should_remain:
-            bx, by = bar.pop()
-            if len(gas) < GAS_SAFETY_CAP:
-                gas.append(new_gas_particle(bx, by))
+        if bar_frame <= BAR_DRAIN_FRAMES:
+            should_remain = max(0, int(round(bar_total * (1.0 - bar_frame / BAR_DRAIN_FRAMES))))
+            while len(bar) > should_remain:
+                bx, by = bar.pop()
+                if len(gas) < GAS_SAFETY_CAP:
+                    gas.append(new_gas_particle(bx, by))
+        # else: the rest. `bar` is empty, so nothing draws and nothing is born.
 
-        if bar_frame >= BAR_PERIOD_FRAMES:
+        if bar_frame >= BAR_DRAIN_FRAMES + BAR_REST_FRAMES:
             bar = new_bar(W, H)
             bar_total = len(bar)
             bar_frame = 0
