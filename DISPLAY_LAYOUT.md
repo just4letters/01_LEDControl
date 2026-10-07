@@ -1,7 +1,7 @@
 # Display layout
 
 How the LED wall is physically connected and how every visualizer in this
-repo talks to it. Read this before writing a new `app.py` or study.
+repo talks to it. Read this before writing a new `app.py` or sketch.
 
 ## The hardware
 
@@ -66,13 +66,13 @@ never seen.
 
 This is what `main.py`, `visualizer/ambient/app.py`,
 `visualizer/pixel_life/app.py`, and the calibration tools all already do.
-`visualizer/ambient/studies/_pixel_canvas.py` wraps steps 1-3 into a small
-`PixelCanvas` class (`set_px`, `clear`, `present`) so a new study is just:
+`visualizer/ambient/_pixel_canvas.py` wraps steps 1-3 into a small
+`PixelCanvas` class (`set_px`, `clear`, `present`) so a new sketch is just:
 
 ```python
 from _pixel_canvas import PixelCanvas
 
-canvas = PixelCanvas(title="my study")
+canvas = PixelCanvas(title="my sketch")
 while canvas.poll():
     canvas.clear()
     canvas.set_px(x, y, (255, 255, 255))
@@ -80,7 +80,7 @@ while canvas.poll():
 canvas.quit()
 ```
 
-## Why this matters for studies
+## Why this matters for sketches
 
 The whole point of this panel is that individual pixels are visible - a
 lit pixel should read as one distinct point of light on a black field, not

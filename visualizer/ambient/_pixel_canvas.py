@@ -1,10 +1,10 @@
 """
-Shared harness for ambient "studies" - small standalone pygame sketches that
+Shared harness for ambient "sketches" - small standalone pygame sketches that
 prototype one visual idea in isolation before it's folded into the real-time
 patterns.py used by the installation.
 
-No camera, no voice, no AI here on purpose: a study is meant to be run,
-watched, and tweaked in a tight loop (`python study_XX_name.py`), not wired
+No camera, no voice, no AI here on purpose: a sketch is meant to be run,
+watched, and tweaked in a tight loop (`python sketch_XX_name.py`), not wired
 into the full app.
 
 DISPLAY SETUP - this mirrors exactly what every other app.py in this repo
@@ -18,7 +18,7 @@ blits into. Nothing here is ever scaled or stretched: the animation's own
 resolution IS the LED grid's resolution, one buffer pixel is one physical
 LED, placed exactly where led_config.json says it goes.
 
-Controls (all studies): Esc or close the window to quit.
+Controls (all sketches): Esc or close the window to quit.
 """
 
 import os
@@ -27,13 +27,37 @@ import json
 import numpy as np
 import pygame
 
-STUDIES_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR = os.path.abspath(os.path.join(STUDIES_DIR, "..", "..", ".."))
-LED_CONFIG_PATH = os.path.join(ROOT_DIR, "led_config.json")
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _find_led_config(start):
+    """Walk up from `start` until led_config.json turns up.
+
+    Searched rather than reached for by a fixed number of '..' hops, because
+    both this harness and the pieces that use it move around: pieces get
+    promoted between tier folders (sketches/ -> studies/ -> selects/), and this
+    file itself moved up a level when the harness became shared across tiers.
+    A hardcoded hop count silently resolves to the wrong directory every time
+    that happens, and only fails at run time, well after the import looks fine.
+    """
+    d = start
+    while True:
+        candidate = os.path.join(d, "led_config.json")
+        if os.path.isfile(candidate):
+            return candidate
+        parent = os.path.dirname(d)
+        if parent == d:    # hit the filesystem root
+            raise FileNotFoundError(
+                "led_config.json not found in any parent directory of " + start
+            )
+        d = parent
+
+
+LED_CONFIG_PATH = _find_led_config(HERE)
 
 
 class PixelCanvas:
-    def __init__(self, title="study"):
+    def __init__(self, title="sketch"):
         with open(LED_CONFIG_PATH, "r") as f:
             cfg = json.load(f)
 
@@ -93,7 +117,7 @@ class PixelCanvas:
         self.clock.tick(fps)
 
     def poll(self):
-        """Returns False when the study should quit."""
+        """Returns False when the sketch should quit."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False

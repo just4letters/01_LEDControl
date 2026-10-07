@@ -1,35 +1,21 @@
 """
-Study 04 - Accretion
-====================
+Sketch 03 - Affinity
+===================
 
-A variation on Study 03 (Affinity). Everything below the line is identical:
-the same bar of fuel dissolving into gas and then resting on a bare floor,
-the same columns of pixels rising and pressing, the same membrane that
-telegraphs a crossing before it happens. The top half still has no
-stickiness at all - pixels drift, blown by a wind, drawn toward their own
-color and pushed away from the others.
+A variation on Sketch 02 (Selective Membrane). Everything below the line is
+identical: the same three-second bar of fuel dissolving into gas and then
+resting on a bare floor, the same columns of pixels rising and pressing,
+the same membrane that telegraphs a crossing before it happens.
 
-What changes is how a pixel ends.
+What changes is what a pixel does once it's through.
 
-In Study 03 drifting pixels simply timed out. It worked, but it was a
-bookkeeping device rather than an event: pixels kept arriving through the
-membrane and pixels kept quietly ceasing to exist, and nothing on screen
-explained why. There was no reason for anything to disappear.
-
-So here there's a reason. Every sixth bar - once every eighteen seconds or
-so - a black hole opens somewhere at random in the upper field. It is a
-single pixel, almost always dark, and what it does is bend the wind: within
-its reach the prevailing flow is replaced by an inward spiral, so anything
-nearby stops being carried by the weather and starts falling. Pixels wind
-in, accelerating, and vanish at the center. It flares each time it takes
-one - that flicker is the only thing that gives it away - and then after a
-few seconds it closes, and the field is quiet again until the next one
-opens somewhere else.
-
-Population is now a genuine equilibrium rather than a set number: pixels
-arrive at whatever rate the membrane allows, and leave at whatever rate the
-black holes can catch them, which rises and falls with how crowded the
-field is. Nobody sets the total. It finds itself.
+In Sketch 02 the top half accumulates - pixels stick to the top edge and to
+their own color, and growth creeps downward in branching chains. It reads
+like an anthill in reverse. Here, nothing sticks to anything, ever. A pixel
+that crosses the membrane just drifts, permanently, and the only thing
+organizing it is a preference: it is gently drawn toward wherever there is
+more of its own color, and gently pushed away from concentrations of the
+other two.
 
 Over all of it blows a wind: a wide, slow, swirling flow that everything
 is carried by. The affinity happens in the wind's own frame of reference,
@@ -64,7 +50,7 @@ five thousand, and it produces smoother, more fluid grouping than
 nearest-neighbor attraction does - clusters have soft edges and get pulled
 toward each other as wholes.
 
-Run:  python study_03_affinity.py
+Run:  python sketch_03_affinity.py
 Opens fullscreen on the LED monitor (display 1) at native resolution,
 positioned per led_config.json. Esc or close the window to quit.
 """
@@ -76,13 +62,18 @@ import random
 
 import numpy as np
 
+# The shared canvas harness lives one level up, in ambient/, rather than
+# alongside this file. That's deliberate: a piece gets promoted between tiers by
+# moving it (sketches/ -> studies/ -> selects/), and resolving the harness
+# relative to the PARENT directory means that move never breaks the import.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.append(SCRIPT_DIR)
+AMBIENT_DIR = os.path.dirname(SCRIPT_DIR)
+if AMBIENT_DIR not in sys.path:
+    sys.path.append(AMBIENT_DIR)
 
 from _pixel_canvas import PixelCanvas
 
-# --- the bass line (identical to Study 02) ------------------------------
+# --- the bass line (identical to Sketch 02) ------------------------------
 # The cycle is DRAIN then REST. The bar spends all of itself over the drain,
 # then the bottom of the screen is empty and nothing is emitted at all until
 # the next bar snaps in whole. That silence is the point: it puts a visible
@@ -120,7 +111,7 @@ PRESS_FADE_FRAMES = 240
 PRESS_FADE_FLOOR = 0.08
 
 # --- charging crossings (identical mechanic, tuned busier) ---------------
-# Study 02 wants each crossing to be a rare, legible event because each one
+# Sketch 02 wants each crossing to be a rare, legible event because each one
 # becomes a permanent mark. Here nothing is permanent, so the top half needs
 # a real population to have anything to flock WITH - hence more charges at
 # once and a shorter build. It's still telegraphed, just less ceremonial.
@@ -131,7 +122,7 @@ CHARGE_NEIGHBOR_FALLOFF = 0.55
 CHARGE_MIN_SEPARATION = 6
 CHARGE_EASE = 2.2
 
-# --- the drifting field (inherited from Study 03) ------------------------
+# --- the drifting field (this is what makes Sketch 03 different) ---------
 FIELD_CELL = 4            # px per density-map cell. Smaller = finer grouping, more cost.
 COHESION_BLUR = 4         # blur passes on the own-color map. More = larger, softer groups.
 SEPARATION_BLUR = 1       # blur passes on the all-colors map used for personal space
@@ -193,47 +184,29 @@ WANDER_FRAMES_MIN = 120    # 2s adrift
 WANDER_FRAMES_MAX = 420    # 7s adrift
 WANDER_KICK = 0.35         # impulse applied the moment it breaks away
 
+# Lifespan. Nothing sticks, so nothing else would ever remove a drifting
+# pixel and the top half would fill up forever. A long life plus a slow fade
+# gives steady turnover without anything visibly popping out of existence.
+DRIFT_LIFE_MIN = 12000    # 200s
+DRIFT_LIFE_MAX = 20400    # 340s - population is crossings/sec x mean lifespan, and the
+                          # crossing rate is already pinned near its ceiling, so lifespan is
+                          # the only lever that adds pixels without making the membrane
+                          # busier. Doubling these doubles the field. See CLUMP_GAIN above,
+                          # which has to come down to match.
+DRIFT_FADE_FRAMES = 240   # 4s of fade at the end of life
 DRIFT_SHIMMER = 0.18      # gentle per-pixel brightness wobble
-
-# --- the black hole -----------------------------------------------------
-# Drifting pixels have no lifespan at all in this study. The ONLY way one
-# leaves the field is by falling into a black hole, which means the total
-# population is an equilibrium between the membrane's crossing rate and the
-# black holes' catch rate - and because the catch rate scales with how many
-# pixels are around to be caught, it self-corrects. A crowded field is eaten
-# faster; a sparse one is barely touched. Nothing sets the number directly.
-#
-# BH_RANGE and BH_LIFE_FRAMES are the two dials that set where that
-# equilibrium lands. Both raise the catch rate, so both LOWER the steady
-# population - if the field is thinning out, shrink them.
-BH_EVERY_N_BARS = 6       # one opens every sixth bar cycle
-BH_LIFE_FRAMES = 300      # ~3.3s open, then it closes and the field is quiet
-BH_RANGE = 34             # px of reach - beyond this the wind is untouched
-BH_FALLOFF = 1.5          # >1 concentrates the pull near the middle of that reach
-BH_SPEED = 0.6            # px/frame of infall at the edge of its reach
-BH_ACCEL = 2.2            # how much faster the fall gets approaching the center
-BH_SWIRL = 1.0            # sideways component of the infall. 0 = straight in,
-                          # 1 = a 45-degree spiral. This is what makes it wind in
-                          # rather than drop, and it's most of the character.
-BH_HORIZON = 1.6          # px - inside this a pixel is gone
-BH_MARGIN = 18            # px - keep it this far off the walls and the membrane
-
-BH_IDLE_COLOR = (9, 9, 10)        # almost off - a dead pixel until it isn't
-BH_FLASH_COLOR = (210, 215, 235)  # what it flares to when it swallows something
-BH_FLASH_DECAY = 0.80             # per-frame decay of that flare
-BH_IDLE_FLICKER = 0.006           # small chance per frame of a faint unprompted twitch
 
 GAS_COLOR = (35, 45, 60)
 GAS_COLOR_HI = (60, 75, 95)
 BARRIER_COLOR = (70, 70, 70)
 
-# Brighter than Study 02's leak colors: these never pile up into dense
+# Brighter than Sketch 02's leak colors: these never pile up into dense
 # accreted masses, they stay spread out and moving, so they need more
 # individual presence to read at all.
 DRIFT_COLORS = [
-    (110, 80, 80),   # red
-    (80, 110, 80),   # green
-    (80, 80, 110),   # blue
+    (110, 22, 22),   # red
+    (22, 110, 32),   # green
+    (30, 42, 145),   # blue
 ]
 
 CHARGE_GLOW_COLORS = [
@@ -244,7 +217,7 @@ CHARGE_GLOW_COLORS = [
 
 
 # =======================================================================
-# lower half - unchanged from Study 02
+# lower half - unchanged from Sketch 02
 # =======================================================================
 
 def new_gas_particle(x, y):
@@ -377,6 +350,7 @@ def new_drifter(x, y, color_index):
         "vx": random.uniform(-0.3, 0.3),
         "vy": -random.uniform(0.15, 0.35),
         "ci": color_index,
+        "life": random.randint(DRIFT_LIFE_MIN, DRIFT_LIFE_MAX),
         "wander": 0,
         "phase": random.uniform(0, math.tau),
     }
@@ -458,24 +432,11 @@ def build_affinity_fields(cxs, cys, cis, gw, gh):
     return wide, own_grad, other_grad, sharp_grad
 
 
-def new_black_hole(W, barrier_y):
-    return {
-        "x": random.uniform(BH_MARGIN, W - 1 - BH_MARGIN),
-        "y": random.uniform(BH_MARGIN, barrier_y - 1 - BH_MARGIN),
-        "age": 0,
-        "flash": 1.0,   # it announces itself as it opens
-        "eaten": 0,
-    }
-
-
-def update_drifters(drifters, t, W, barrier_y, bh):
-    """One frame of the affinity field.
-
-    Returns (survivors, n_swallowed). `bh` is the open black hole or None.
-    """
+def update_drifters(drifters, t, W, barrier_y):
+    """One frame of the affinity field. Returns the list of survivors."""
     n = len(drifters)
     if n == 0:
-        return drifters, 0
+        return drifters
 
     xs = np.fromiter((p["x"] for p in drifters), dtype=np.float64, count=n)
     ys = np.fromiter((p["y"] for p in drifters), dtype=np.float64, count=n)
@@ -483,6 +444,7 @@ def update_drifters(drifters, t, W, barrier_y, bh):
     vys = np.fromiter((p["vy"] for p in drifters), dtype=np.float64, count=n)
     cis = np.fromiter((p["ci"] for p in drifters), dtype=np.int64, count=n)
     wander = np.fromiter((p["wander"] for p in drifters), dtype=np.int64, count=n)
+    life = np.fromiter((p["life"] for p in drifters), dtype=np.int64, count=n)
 
     gw = max(1, W // FIELD_CELL)
     gh = max(1, barrier_y // FIELD_CELL)
@@ -533,33 +495,6 @@ def update_drifters(drifters, t, W, barrier_y, bh):
     # against the wind, which was previously capping everything at about half
     # the flow speed no matter how hard the wind blew.
     wx, wy = wind_at(xs, ys, t)
-
-    # A black hole doesn't push pixels around - it replaces the weather. Inside
-    # its reach the ambient flow is blended toward an inward spiral, so a pixel
-    # near it simply stops being carried by the wind and starts falling instead.
-    # Doing it this way (rather than adding a gravity force) means the wind can
-    # never rescue something that's already committed, and the infall reads as
-    # the flow itself bending rather than as pixels being yanked.
-    swallowed = np.zeros(n, dtype=bool)
-    if bh is not None:
-        dx = bh["x"] - xs
-        dy = bh["y"] - ys
-        dist = np.hypot(dx, dy)
-        safe = np.maximum(dist, 1e-6)
-        closeness = np.clip(1.0 - dist / BH_RANGE, 0.0, 1.0)
-        infl = closeness ** BH_FALLOFF
-
-        rx, ry = dx / safe, dy / safe          # straight at it
-        ix = rx - ry * BH_SWIRL                # ...plus a sideways component
-        iy = ry + rx * BH_SWIRL                #    which turns the fall into a spiral
-        imag = np.hypot(ix, iy) + 1e-9
-        fall = BH_SPEED * (1.0 + BH_ACCEL * closeness)
-
-        wx = wx * (1.0 - infl) + (ix / imag) * fall * infl
-        wy = wy * (1.0 - infl) + (iy / imag) * fall * infl
-
-        swallowed = dist < BH_HORIZON
-
     rvx = vxs - wx
     rvy = vys - wy
 
@@ -634,17 +569,20 @@ def update_drifters(drifters, t, W, barrier_y, bh):
     ys[bottom] = float(barrier_y - 1)
     vys[bottom] *= WALL_BOUNCE
 
+    life = life - 1
+
     survivors = []
     for i, p in enumerate(drifters):
-        if swallowed[i]:
+        if life[i] <= 0:
             continue
         p["x"] = xs[i]
         p["y"] = ys[i]
         p["vx"] = vxs[i]
         p["vy"] = vys[i]
         p["wander"] = int(wander[i])
+        p["life"] = int(life[i])
         survivors.append(p)
-    return survivors, int(np.count_nonzero(swallowed))
+    return survivors
 
 
 def draw_drifters(canvas, drifters, t):
@@ -654,11 +592,13 @@ def draw_drifters(canvas, drifters, t):
     xs = np.fromiter((p["x"] for p in drifters), dtype=np.float64, count=n)
     ys = np.fromiter((p["y"] for p in drifters), dtype=np.float64, count=n)
     cis = np.fromiter((p["ci"] for p in drifters), dtype=np.int64, count=n)
+    life = np.fromiter((p["life"] for p in drifters), dtype=np.float64, count=n)
     phases = np.fromiter((p["phase"] for p in drifters), dtype=np.float64, count=n)
 
     base = np.array(DRIFT_COLORS, dtype=np.float64)[cis]
     shimmer = 1.0 - DRIFT_SHIMMER * (0.5 + 0.5 * np.sin(t * 1.7 + phases))
-    colors = (base * shimmer[:, None]).astype(np.uint8)
+    fade = np.clip(life / DRIFT_FADE_FRAMES, 0.0, 1.0)
+    colors = (base * (shimmer * fade)[:, None]).astype(np.uint8)
 
     xi = np.round(xs).astype(np.int64)
     yi = np.round(ys).astype(np.int64)
@@ -669,7 +609,7 @@ def draw_drifters(canvas, drifters, t):
 # =======================================================================
 
 def main():
-    canvas = PixelCanvas(title="Study 04 - Accretion")
+    canvas = PixelCanvas(title="Sketch 03 - Affinity")
     W, H = canvas.width, canvas.height
     barrier_y = H // 2
 
@@ -681,8 +621,6 @@ def main():
     bar = new_bar(W, H)
     bar_total = len(bar)
     bar_frame = 0
-    bars_done = 0        # completed bar cycles, counts toward the next black hole
-    black_hole = None
 
     t = 0.0
     running = True
@@ -704,9 +642,6 @@ def main():
             bar = new_bar(W, H)
             bar_total = len(bar)
             bar_frame = 0
-            bars_done += 1
-            if bars_done % BH_EVERY_N_BARS == 0:
-                black_hole = new_black_hole(W, barrier_y)
 
         pressure *= PRESSURE_DECAY
 
@@ -755,20 +690,8 @@ def main():
                 pressure[x] *= LEAK_RESET
         charges = still_charging
 
-        # ---- the affinity field, and whatever the black hole takes ----
-        drifters, swallowed = update_drifters(drifters, t, W, barrier_y, black_hole)
-
-        if black_hole is not None:
-            black_hole["flash"] *= BH_FLASH_DECAY
-            if swallowed:
-                # it flares for what it takes - the only signal it gives
-                black_hole["eaten"] += swallowed
-                black_hole["flash"] = min(1.0, black_hole["flash"] + 0.55 * swallowed)
-            elif random.random() < BH_IDLE_FLICKER:
-                black_hole["flash"] = max(black_hole["flash"], 0.22)
-            black_hole["age"] += 1
-            if black_hole["age"] >= BH_LIFE_FRAMES:
-                black_hole = None
+        # ---- the affinity field ----
+        drifters = update_drifters(drifters, t, W, barrier_y)
 
         # ---- draw ----
         canvas.clear((0, 0, 0))
@@ -790,13 +713,6 @@ def main():
 
         draw_gas_vectorized(canvas, gas, t)
         draw_drifters(canvas, drifters, t)
-
-        # drawn last so nothing spiralling in ever paints over it
-        if black_hole is not None:
-            canvas.set_px(
-                black_hole["x"], black_hole["y"],
-                lerp_color(BH_IDLE_COLOR, BH_FLASH_COLOR, black_hole["flash"]),
-            )
 
         canvas.present(fps=60)
 

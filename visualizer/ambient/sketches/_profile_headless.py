@@ -1,4 +1,4 @@
 """
 Scratch profiling harness used while developing this folder. Not part of
-the studies collection; safe to delete.
+the sketches collection; safe to delete.
 """

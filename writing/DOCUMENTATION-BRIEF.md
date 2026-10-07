@@ -25,7 +25,7 @@ An ongoing practice around a physical LED panel: 0.5m square, 256×256, 1.9mm pi
 run as an extended second monitor. The work is about **natural human interaction and
 language as the interface** — webcam hand/face tracking, voice, and language models
 translating speech into bounded operations on a physics system. Plus a parallel track
-of ambient generative "studies" that run without any interaction at all.
+of ambient generative "sketches" that run without any interaction at all.
 
 Aesthetic constraint throughout: black background, individual pixels must read as
 individual pixels, never scaled or antialiased.
@@ -86,7 +86,7 @@ This is the key organizing idea. The work splits into:
 
 - **The instrument** — calibration → homography → finger-as-cursor → voice → strict
   structured intent. Shared substrate across sketches.
-- **The pieces played on it** — pixel_life, ambient studies, waterfall, face/nose
+- **The pieces played on it** — pixel_life, ambient sketches, waterfall, face/nose
   variants.
 
 So: **one foundation post explains the instrument properly. Every later sketch post
@@ -130,7 +130,7 @@ Blocking / open on that post:
 - Root `README.md` as a hub.
 
 **Candidate subjects for future posts:**
-- **Ambient Studies 03 + 04 (Affinity / Accretion) — strongest material, probably
+- **Ambient Sketches 03 + 04 (Affinity / Accretion) — strongest material, probably
   ONE post not two.** The arc writes itself: built a field where pixels drift
   forever and group by color, realized nothing on screen explained why anything ever
   left, fixed it by making the exit visible (a black hole that bends the wind into an
@@ -141,7 +141,7 @@ Blocking / open on that post:
   collapsing into three tidy blobs; and the `CLUMP_GAIN` saturation trap, where
   doubling the population silently flattened the loner-vs-clump distinction into
   uniform mush. See JOURNAL 2026-08-05.
-- Ambient Study 02 (Selective Membrane) — a membrane that only lets some pixels
+- Ambient Sketch 02 (Selective Membrane) — a membrane that only lets some pixels
   through, and now *telegraphs* it: the line rests dim white and a crossing builds
   visibly across three pixels before bursting at full saturation. Pixels gain a color
   by crossing; above the line they can only rest against their own color and bounce
@@ -188,5 +188,5 @@ Blocking / open on that post:
 ├── core/vision.py                  <- HandTracker / FaceTracker, homography applied
 ├── core/voice.py                   <- Whisper listener + constrained-schema intent
 ├── visualizer/pixel_life/          <- app.py, physics.py, instructions.txt (the prompt)
-└── visualizer/ambient/studies/     <- standalone generative sketches + their README
+└── visualizer/ambient/sketches/    <- standalone generative sketches (+ studies/, selects/)
 ```

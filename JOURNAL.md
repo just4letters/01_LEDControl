@@ -4,6 +4,13 @@ Running dated log, drafted from the git diff and the session at "log this" time.
 Two minutes, not a writing exercise. This is what post drafts get pulled from —
 see `writing/DOCUMENTATION-BRIEF.md` and `writing/RHYTHM.md`.
 
+> **Nomenclature note (2026-10-07).** Entries before this date call the ambient
+> pieces "studies" — e.g. "Study 03 (Affinity)". They were renamed to
+> **sketches** to match The Periphery Center's output tiers, where a *Study* is
+> specifically something that has survived public contact and these haven't yet.
+> The historical entries are left as written rather than retconned; `study_03`
+> and `sketch_03` are the same file. See `/CYCLE.md` for the tiers and gates.
+
 ---
 
 ## 2026-08-05

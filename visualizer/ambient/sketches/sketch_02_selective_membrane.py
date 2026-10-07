@@ -1,12 +1,12 @@
 """
-Study 02 - Selective Membrane
+Sketch 02 - Selective Membrane
 =============================
 
-A variation on Study 01 (Barrier Drift). Same rigid line, same buoyant,
+A variation on Sketch 01 (Barrier Drift). Same rigid line, same buoyant,
 turbulent gas pressing against it from below - but now the line is a
 membrane that only lets a pixel through some of the time it tries.
 Pressure still has to build up before a crossing attempt happens at all,
-same as Study 01, but each attempt is its own coin flip - there's no
+same as Sketch 01, but each attempt is its own coin flip - there's no
 "chosen one" pixel marked permeable at birth. That's deliberate: a fixed
 subset of eternally-permeable pixels can, by bad luck, all use up their
 one chance and leave nothing behind able to leak - a dead end with no way
@@ -59,7 +59,7 @@ to be behaviorally identical to a naive per-particle version, just much
 cheaper to run - if something here ever looks different than expected,
 that's a bug in the vectorized math, not an intentional change.
 
-Run:  python study_02_selective_membrane.py
+Run:  python sketch_02_selective_membrane.py
 Opens fullscreen on the LED monitor (display 1) at native resolution,
 positioned per led_config.json. Esc or close the window to quit.
 """
@@ -71,9 +71,14 @@ import random
 
 import numpy as np
 
+# The shared canvas harness lives one level up, in ambient/, rather than
+# alongside this file. That's deliberate: a piece gets promoted between tiers by
+# moving it (sketches/ -> studies/ -> selects/), and resolving the harness
+# relative to the PARENT directory means that move never breaks the import.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.append(SCRIPT_DIR)
+AMBIENT_DIR = os.path.dirname(SCRIPT_DIR)
+if AMBIENT_DIR not in sys.path:
+    sys.path.append(AMBIENT_DIR)
 
 from _pixel_canvas import PixelCanvas
 
@@ -123,7 +128,7 @@ DAMPING = 0.985         # velocity damping so speeds settle rather than run away
 
 PRESSURE_GAIN = 1.0     # pressure added per barrier contact
 PRESSURE_DECAY = 0.965  # per-frame decay of each column's pressure
-LEAK_K = 0.0000008      # leak probability scaling per unit pressure^2 (4x study 01's,
+LEAK_K = 0.0000008      # leak probability scaling per unit pressure^2 (4x sketch 01's,
                          # since only 25% of successful attempts actually get through here)
 LEAK_RESET = 0.35       # fraction of pressure kept after a leak (partial relief)
 
@@ -422,7 +427,7 @@ def draw_stuck_vectorized(canvas, stuck, t, cache):
 
 
 def main():
-    canvas = PixelCanvas(title="Study 02 - Selective Membrane")
+    canvas = PixelCanvas(title="Sketch 02 - Selective Membrane")
     W, H = canvas.width, canvas.height
     barrier_y = H // 2
 

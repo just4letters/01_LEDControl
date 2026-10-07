@@ -1,5 +1,5 @@
 """
-Study 01 - Barrier Drift
+Sketch 01 - Barrier Drift
 ========================
 
 Geometric constraint, fluid behavior. A single 1px horizontal line sits
@@ -14,7 +14,7 @@ until it touches the top edge or a side edge, where it sticks for good.
 Over a long run the line keeps getting tested, a slow trickle keeps leaking
 through, and the edges above it slowly accumulate a fringe of stuck pixels.
 
-Run:  python study_01_barrier_drift.py
+Run:  python sketch_01_barrier_drift.py
 Opens fullscreen on the LED monitor (display 1) and draws at exactly the
 panel's native resolution, positioned per led_config.json - same as every
 other visualizer in this repo. Esc or close the window to quit.
@@ -25,9 +25,14 @@ import sys
 import math
 import random
 
+# The shared canvas harness lives one level up, in ambient/, rather than
+# alongside this file. That's deliberate: a piece gets promoted between tiers by
+# moving it (sketches/ -> studies/ -> selects/), and resolving the harness
+# relative to the PARENT directory means that move never breaks the import.
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if SCRIPT_DIR not in sys.path:
-    sys.path.append(SCRIPT_DIR)
+AMBIENT_DIR = os.path.dirname(SCRIPT_DIR)
+if AMBIENT_DIR not in sys.path:
+    sys.path.append(AMBIENT_DIR)
 
 from _pixel_canvas import PixelCanvas
 
@@ -73,7 +78,7 @@ def new_gas_particle(w, h, barrier_y):
 
 
 def main():
-    canvas = PixelCanvas(title="Study 01 - Barrier Drift")
+    canvas = PixelCanvas(title="Sketch 01 - Barrier Drift")
     W, H = canvas.width, canvas.height
     barrier_y = H // 2
 
