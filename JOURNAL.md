@@ -13,6 +13,71 @@ see `writing/DOCUMENTATION-BRIEF.md` and `writing/RHYTHM.md`.
 
 ---
 
+## 2026-10-07
+
+**Commit:** `e8dc93f` — "refactor: rename studies to sketches, add Periphery Center output tiers"
+
+Renamed `studies/` → `sketches/` and `study_0N_*` → `sketch_0N_*`. Not cosmetic:
+under The Periphery Center's own output tiers a **Study** is specifically
+something that has survived public contact, and none of these has been shown to
+anyone. They're **Sketches**. Caught this only because the Center's nomenclature
+got read properly for the first time — the vocabulary had been drifting for two
+months.
+
+Added the other two tiers as empty folders, each with its gate written down.
+Study: *met someone who isn't me and survived it* — the lightest honest
+equivalent of an Exchange, since POP runs no cycle. Select: *earns a slot in
+what the panel plays when nothing else is running*. `CYCLE.md` at the root holds
+the tier table and a promotion log.
+
+Moved the shared canvas harness up to `visualizer/ambient/_pixel_canvas.py` and
+made each sketch resolve it via its parent directory, so promoting a piece
+between tiers is a pure `git mv` with no edits. **That move exposed a latent
+bug**: the harness found `led_config.json` by walking up a hardcoded three
+directories, so relocating it silently pointed at the wrong folder — and only
+failed at run time, well after the import looked fine. Replaced with an upward
+search for the file. Compiling cleanly would never have caught this; running it
+did. Another entry in the measure-don't-eyeball column.
+
+Left the older journal entries saying "Study 03" rather than retconning them,
+with a note at the top explaining the rename. You don't rewrite yesterday's log.
+
+**Practice-level:** folded this and the robot arm work into one umbrella project
+— **Palettes of the Periphery (POP)**, personal explorations inside The
+Periphery Center's frame but not running its Culture Cycle. New `00_POP` repo
+(landed 10-09) holds `PRACTICE.md` and the project instructions. See that repo's
+journal for the reasoning.
+
+**Correction to an earlier claim.** I'd said the arm was missing the smoothing
+the panel has. Wrong — reading `track_to_robot.py` properly, it already runs an
+EMA at **α = 0.35**, the identical filter at the identical constant as
+`core/vision.py`. Two different media, two different control problems, same
+number, arrived at independently. The actual gap is re-acquisition: the panel
+waits 15 frames before declaring a hand lost (prevents dropout flicker), the arm
+resets EMA state on re-acquire (prevents a jump from stale history). Each
+palette solves one half. Both want both.
+
+**Found while poking around:** `visualizer/ambient/app.py` is a working ambient
+installation — flow field driven by live weather, time-of-day and room motion,
+with voice control — and `patterns.py` registers exactly **one** pattern. None
+of the four sketches has been folded in. Which means the Select gate isn't a
+metaphor: promotion to Select is literally registering a sketch as a pattern so
+it becomes what the panel plays by default. That's the clearest next direction
+for this palette, and it's a real design problem — the sketches are stateful
+simulations owning their own loop, while `render_ambient_frame` expects a
+per-frame render driven by external `ambient_state`.
+
+**Worth pulling into a post:** the hardcoded-hops bug is a tidy small example of
+the measure-don't-eyeball theme — a refactor that compiled, imported, and still
+pointed at nothing. And the α = 0.35 convergence is a genuinely interesting
+finding about body-driven input generally.
+
+**Open:** nothing promoted past Sketch. Post 01 still blocked on the wide
+in-room shot. `DOCUMENTATION-BRIEF.md` now predates the POP framing and will
+contradict the project instructions until rewritten.
+
+---
+
 ## 2026-08-05
 
 **Commit:** [`23d81dd`](https://github.com/just4letters/01_LEDControl/commit/23d81dd) — "implement affinity study and hub page while updating calibration configs"
