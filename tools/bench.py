@@ -226,11 +226,24 @@ def bench_whisper(args):
         import speech_recognition as sr
         import whisper  # noqa: F401
         import soundfile  # noqa: F401
+    except Exception as e:
+        hint = "pip install openai-whisper soundfile SpeechRecognition"
+        if "numpy" in str(e).lower():
+            hint = "torch and NumPy disagree: pip install 'numpy<2' (and an OpenCV 4.x, since OpenCV 5 needs NumPy 2)"
+        return skip("whisper", f"{type(e).__name__}: {e}\n  {hint}")
+    try:
+        import numpy as np
+        import torch
+        torch.from_numpy(np.zeros(1, dtype="float32"))
+    except Exception as e:
+        return skip("whisper", f"torch cannot exchange data with this NumPy ({type(e).__name__}: {e})\n"
+                               "  torch 2.2.x needs NumPy 1.x: pip install 'numpy==1.26.4' 'opencv-contrib-python==4.10.0.84'")
+    try:
         audio = make_audio(args.mic)
     except Exception as e:
-        skip("whisper", f"{type(e).__name__}: {e}\n  pip install openai-whisper soundfile SpeechRecognition  "
-                        "(openai-whisper needs torch, which has no wheels for Intel Macs past 2.2.2)")
-        return None
+        print(f"  (mic unavailable: {e}\n   using synthetic audio; for --mic: brew install portaudio && pip install pyaudio)")
+        args.mic = False
+        audio = make_audio(False)
     rec = sr.Recognizer()
     if not args.mic:
         print("  (synthetic noise stands in for speech; use --mic for a real phrase)")
