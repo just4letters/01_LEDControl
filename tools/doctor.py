@@ -76,7 +76,7 @@ def check_packages():
         cv = sorted(n for n in names if n.startswith("opencv-"))
         if len(cv) > 1:
             report("WARN", "more than one OpenCV package installed: " + ", ".join(cv),
-                   "causes the SDL duplicate-library warnings; keep only opencv-contrib-python "
+                   "they overwrite each other's cv2/ folder; keep only opencv-contrib-python "
                    "(pip uninstall -y <all of them>, then pip install opencv-contrib-python==5.0.0.93)")
         if "pygame" in names and "pygame-ce" in names:
             report("FAIL", "both pygame and pygame-ce installed",

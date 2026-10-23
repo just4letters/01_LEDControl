@@ -11,10 +11,14 @@
 #   pip install -r requirements.txt
 #
 # NOTE: opencv-contrib-python, not opencv-python. mediapipe depends on the
-# contrib build, and installing both puts two copies of OpenCV (and of SDL2)
-# in the venv, which prints a wall of "Class SDL... is implemented in both"
-# warnings whenever an app starts. The contrib build includes everything
+# contrib build, and the two packages install into the same cv2/ folder, so
+# having both is a broken mix. The contrib build includes everything
 # opencv-python does (cv2.aruco, imshow), so one package is enough.
+#
+# KNOWN, HARMLESS SO FAR: on macOS every app prints a wall of
+# "Class SDL... is implemented in both .../cv2/... and .../pygame/..." lines.
+# Both the OpenCV wheel and pygame-ce bundle their own libSDL2. Removing the
+# duplicate OpenCV package did NOT silence it. Nothing has crashed from it.
 #
 # NOTE: pygame-ce, not pygame. They install to the same `pygame` namespace but
 # are different projects; installing vanilla pygame will mostly work and then
