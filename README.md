@@ -206,6 +206,12 @@ scripts download any that are missing. Gemini model names are hard-coded per
 file as fallback lists (`grep -rn fallback_models`) and have drifted apart —
 `core/voice.py` and the apps don't list the same ones.
 
+**Can this machine run it?** `python tools/bench.py` measures hand-tracking
+frame rate, Whisper time per phrase, and both at once (the case that hurts on a
+dual-core machine). Each section skips itself with a reason if a package won't
+install, so it still reports something on a machine where the full
+requirements can't be met. `--no-camera` and `--mic` are the useful flags.
+
 **Headless smoke test.** `visualizer/ambient/sketches/_smoke_headless.py` runs
 each sketch's real `main()` with no window (SDL's dummy video driver) for a few
 thousand frames and checks that nothing raises and something gets lit. It
