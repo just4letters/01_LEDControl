@@ -1,0 +1,36 @@
+# LEDControl -- dependencies for an Intel Mac (tested: 2020 MacBook Air,
+# i3-1000NG4, macOS 15.8, system Python 3.9.6).
+#
+# Use this INSTEAD of requirements.txt on such a machine:
+#   python3 -m venv venv && source venv/bin/activate
+#   pip install -r requirements-intel-mac.txt
+#   brew install portaudio && pip install pyaudio     # microphone; see below
+#
+# Why a separate file: requirements.txt is pinned for Apple-silicon Python 3.14.
+# PyTorch stopped building Intel-Mac wheels after 2.2.2, and torch 2.2.x needs
+# NumPy 1.x, while OpenCV 5 needs NumPy 2. So this machine runs the older set:
+# torch 2.2.2 / numpy 1.26.4 / OpenCV 4.10.
+#
+# PINNED = installed and exercised by tools/bench.py (hand tracking, Whisper,
+# both together). Not yet exercised by the real apps.
+mediapipe==0.10.14
+numpy==1.26.4
+openai-whisper==20250625
+opencv-contrib-python==4.10.0.84
+pygame-ce==2.5.6
+soundfile==0.13.1
+SpeechRecognition==3.17.0
+torch==2.2.2
+
+# UNPINNED on purpose: not installed when the pins above were verified, and I
+# don't know which versions support Python 3.9. pip picks the newest one that
+# does. Once the real apps run, pin them here from `pip list`.
+google-genai
+python-dotenv
+pillow
+requests
+runwayml
+
+# NOT in this file: pyaudio. It needs the portaudio system library first, and
+# one failed build would abort the whole install. Without it nothing can listen
+# to the microphone.

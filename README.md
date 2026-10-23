@@ -78,6 +78,10 @@ first time. Whisper downloads its `base.en` model on first listen.
 
 ### Setting up a second machine
 
+*On an Intel Mac, use `requirements-intel-mac.txt` instead of `requirements.txt`
+below: PyTorch has no newer Intel-Mac builds, which forces older NumPy and
+OpenCV. Its header explains what was and wasn't verified.*
+
 Git carries the code; it does not carry anything that depends on the room.
 Each machine owns its own calibration, venv and keys.
 
