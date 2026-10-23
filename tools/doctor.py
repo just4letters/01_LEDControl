@@ -40,6 +40,9 @@ REQUIRED = {
     "google.genai": "google-genai", "speech_recognition": "SpeechRecognition",
     "whisper": "openai-whisper", "pyaudio": "pyaudio", "requests": "requests",
     "runwayml": "runwayml",
+    # Imported lazily by SpeechRecognition inside recognize_whisper(), so nothing
+    # fails until the first spoken word. Checked here so it fails *now* instead.
+    "soundfile": "soundfile",
 }
 
 

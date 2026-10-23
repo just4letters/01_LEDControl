@@ -29,14 +29,18 @@ python-dotenv==1.2.2
 requests==2.34.2
 runwayml==5.12.0
 SpeechRecognition==3.17.0
+soundfile>=0.13.1
 
-# Required at runtime, not imported directly:
-#   torch            — pulled in by openai-whisper, used by the local Whisper
-#                      speech recognition in core/voice.py
-#   audioop-lts      — pulled in by SpeechRecognition on Python 3.13+, where
-#                      audioop was removed from the standard library
+# Required at runtime, not imported directly by this codebase:
+#   soundfile        -- SpeechRecognition imports it lazily inside
+#                       recognize_whisper(), so a missing one only fails the
+#                       first time you speak ("No module named 'soundfile'").
+#                       Listed above for that reason.
+#   torch            -- pulled in by openai-whisper, used by the local Whisper
+#                       speech recognition in core/voice.py
+#   audioop-lts      -- pulled in by SpeechRecognition on Python 3.13+, where
+#                       audioop was removed from the standard library
 #
-# Also present in the old venv but NOT imported anywhere in this codebase, so
-# deliberately left out — add back if something turns out to need them:
-#   sounddevice, soundfile, vosk (the models/vosk-model-small-en-us directory
-#   is a leftover from an earlier speech approach; core/voice.py uses Whisper)
+# Present in the old venv but NOT needed, so deliberately left out:
+#   sounddevice, vosk (models/vosk-model-small-en-us is a leftover from an
+#   earlier speech approach; core/voice.py uses Whisper)
