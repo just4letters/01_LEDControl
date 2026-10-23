@@ -42,6 +42,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 SUMMARY = []   # (label, value, verdict)
+ISOLATED = {}  # fps measured in section 2, before Whisper has touched the CPU
 
 
 def hdr(t):
@@ -195,6 +196,7 @@ def bench_hand(args):
           f"(p95 {pct(dets, .95)*1000:.1f})")
     if rig.cap is not None:
         print(f"  hand found in {found}/{n} frames" + ("  <-- hold a hand up for a fair test" if found < n * .5 else ""))
+    ISOLATED["fps"] = fps
     SUMMARY.append(("hand tracking, loop fps", f"{fps:.1f}", fps_verdict(fps)))
     SUMMARY.append(("hand tracking, detect ms", f"{statistics.mean(dets)*1000:.1f} (p95 {pct(dets,.95)*1000:.1f})", ""))
     return rig
@@ -284,16 +286,24 @@ def bench_together(args, rig, wh):
 
     th = threading.Thread(target=bg, daemon=True)
     th.start()
-    quiet = max(3.0, args.seconds / 3)
+    time.sleep(3)    # let Whisper's worker threads and the CPU settle after section 3
+    quiet = max(5.0, args.seconds / 2)
     _, _, d0, _, s0 = run_hand(rig, quiet)
     started.set()
     _, _, d1, _, s1 = run_hand(rig, args.seconds)
     stop.set()
     fps0, fps1 = len(d0) / quiet, len(d1) / args.seconds
     worst_gap = max((b - a for a, b in zip(s1, s1[1:])), default=0)
-    print(f"  alone: {fps0:.1f} fps | with whisper running: {fps1:.1f} fps "
-          f"({(1 - fps1 / fps0) * 100:.0f}% drop), longest stall {worst_gap*1000:.0f} ms")
+    iso = ISOLATED.get("fps")
+    print(f"  isolated (section 2): {iso:.1f} fps | just before Whisper: {fps0:.1f} fps | "
+          f"with Whisper running: {fps1:.1f} fps | longest stall {worst_gap*1000:.0f} ms")
+    if iso and fps0 < 0.85 * iso:
+        print(f"  NOTE: the pre-Whisper baseline ({fps0:.1f}) is well below the isolated run ({iso:.1f}), so the machine "
+              "was already slowed (heat, or threads left over from section 3). Judge by the isolated number.")
+    base = max(fps0, iso or 0)
+    print(f"  slowdown from Whisper, against the better baseline ({base:.1f} fps): {(1 - fps1 / base) * 100:.0f}%")
     SUMMARY.append(("together, loop fps while whisper runs", f"{fps1:.1f}", fps_verdict(fps1)))
+    SUMMARY.append(("together, slowdown vs best baseline", f"{(1 - fps1 / base) * 100:.0f}%", ""))
     SUMMARY.append(("together, longest stall ms", f"{worst_gap*1000:.0f}",
                     "ok" if worst_gap < .25 else ("noticeable" if worst_gap < .6 else "cursor freezes")))
 
