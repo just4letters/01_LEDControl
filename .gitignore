@@ -1,6 +1,8 @@
 
 saved_states.json
 led_config.json
+finger_config.json
+nose_config.json
 vosk-model-small-en-us-0.15/
 .env
 
@@ -20,4 +22,3 @@ env/
 Thumbs.db
 
 # Local hardware configurations
-nose_config.json
