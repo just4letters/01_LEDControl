@@ -4,7 +4,7 @@
 # Use this INSTEAD of requirements.txt on such a machine:
 #   python3 -m venv venv && source venv/bin/activate
 #   pip install -r requirements-intel-mac.txt
-#   brew install portaudio && pip install pyaudio     # microphone; see below
+#   (no Homebrew, no PyAudio: core/mic.py records through sounddevice)
 #
 # Why a separate file: requirements.txt is pinned for Apple-silicon Python 3.14.
 # PyTorch stopped building Intel-Mac wheels after 2.2.2, and torch 2.2.x needs
@@ -25,6 +25,7 @@ openai-whisper==20250625
 opencv-contrib-python==4.10.0.84
 pygame-ce==2.5.6
 soundfile==0.13.1
+sounddevice   # microphone input; also a mediapipe dependency. Unpinned: version not recorded.
 SpeechRecognition==3.17.0
 torch==2.2.2
 
@@ -37,6 +38,6 @@ pillow
 requests
 runwayml
 
-# NOT in this file: pyaudio. It needs the portaudio system library first, and
-# one failed build would abort the whole install. Without it nothing can listen
-# to the microphone.
+# Deliberately NOT here: pyaudio. It needs the PortAudio system library, which on
+# a Mac means Homebrew, and Homebrew is winding down Intel-Mac support. If it is
+# installed, core/mic.py uses it; otherwise it uses sounddevice.

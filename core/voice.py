@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from core import config
+from core.mic import open_microphone
 
 load_dotenv()
 
@@ -88,7 +89,7 @@ class VoiceListener:
 
         while self.running:
             try:
-                with sr.Microphone(sample_rate=16000) as source:
+                with open_microphone(sample_rate=16000) as source:
                     print(f"\n{prompt_message}")
                     while self.running:
                         try:

@@ -24,7 +24,9 @@
 # are different projects; installing vanilla pygame will mostly work and then
 # differ somewhere subtle.
 #
-# PyAudio needs portaudio on the system first:  brew install portaudio
+# Microphone: core/mic.py uses PyAudio if it is installed (needs portaudio:
+# brew install portaudio), and falls back to sounddevice if not. PyAudio is
+# therefore optional; sounddevice is what makes a Homebrew-free machine work.
 # openai-whisper pulls in torch (~2GB), which is why a fresh install is slow.
 
 google-genai==2.11.0
@@ -34,6 +36,7 @@ openai-whisper==20250625
 opencv-contrib-python==5.0.0.93
 pillow==12.3.0
 pyaudio==0.2.14
+sounddevice==0.5.6
 pygame-ce==2.5.7
 python-dotenv==1.2.2
 requests==2.34.2

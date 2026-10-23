@@ -206,7 +206,8 @@ def make_audio(use_mic):
     import numpy as np
     if use_mic:
         r = sr.Recognizer()
-        with sr.Microphone(sample_rate=16000) as src:
+        from core.mic import open_microphone
+        with open_microphone(sample_rate=16000) as src:
             print("  Recording 5 s -- say something like 'make it rain heavily' ...")
             return r.record(src, duration=5)
     rng = np.random.default_rng(0)
@@ -241,7 +242,7 @@ def bench_whisper(args):
     try:
         audio = make_audio(args.mic)
     except Exception as e:
-        print(f"  (mic unavailable: {e}\n   using synthetic audio; for --mic: brew install portaudio && pip install pyaudio)")
+        print(f"  (mic unavailable: {e}\n   using synthetic audio; check microphone permission for your terminal)")
         args.mic = False
         audio = make_audio(False)
     rec = sr.Recognizer()

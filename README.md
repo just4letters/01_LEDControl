@@ -23,7 +23,6 @@ an *extended* display. Without the panel, everything falls back to full-screen
 on your main display.
 
 ```bash
-brew install portaudio                 # PyAudio needs it; macOS
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt        # slow the first time: Whisper pulls in torch
@@ -31,6 +30,10 @@ pip install -r requirements.txt        # slow the first time: Whisper pulls in t
 
 If you have an older `venv/` from before the folder was moved, delete it and
 recreate it — its scripts still point at `~/Documents/01_LEDControl/venv`.
+
+**Microphone.** `core/mic.py` records through PyAudio if it is installed and
+through `sounddevice` if not, so a machine without Homebrew/PortAudio (an Intel
+Mac, say) still works. `python tools/doctor.py` says which one it found.
 
 **Keys.** Create `.env` in this folder (it is gitignored):
 
@@ -85,7 +88,7 @@ OpenCV. Its header explains what was and wasn't verified.*
 Git carries the code; it does not carry anything that depends on the room.
 Each machine owns its own calibration, venv and keys.
 
-1. Install Python 3.14 and `brew install portaudio`.
+1. Install Python 3.14.
 2. `git clone https://github.com/just4letters/01_LEDControl.git LEDControl`
    (the remote still has the old name), then `cd LEDControl`.
 3. `python3.14 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`.

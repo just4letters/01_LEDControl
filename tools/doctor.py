@@ -38,7 +38,7 @@ REQUIRED = {
     "numpy": "numpy", "pygame": "pygame-ce", "cv2": "opencv-contrib-python",
     "mediapipe": "mediapipe", "PIL": "pillow", "dotenv": "python-dotenv",
     "google.genai": "google-genai", "speech_recognition": "SpeechRecognition",
-    "whisper": "openai-whisper", "pyaudio": "pyaudio", "requests": "requests",
+    "whisper": "openai-whisper", "requests": "requests",
     "runwayml": "runwayml",
     # Imported lazily by SpeechRecognition inside recognize_whisper(), so nothing
     # fails until the first spoken word. Checked here so it fails *now* instead.
@@ -69,6 +69,10 @@ def check_packages():
         except (ImportError, ValueError):
             found = False
         report("ok" if found else "FAIL", pipname, "" if found else f"pip install {pipname}")
+    # Microphone backend: core/mic.py uses PyAudio if present, else sounddevice.
+    have = [m for m in ("pyaudio", "sounddevice") if importlib.util.find_spec(m) is not None]
+    report("ok" if have else "FAIL", "microphone backend: " + (" / ".join(have) if have else "none"),
+           "" if have else "pip install sounddevice  (no Homebrew or PortAudio needed)")
     # pygame vs pygame-ce share a namespace; both installed is a classic trap.
     try:
         from importlib import metadata
@@ -172,17 +176,23 @@ def check_hardware():
 
     section("Microphone")
     try:
-        import pyaudio
-        pa = pyaudio.PyAudio()
-        ins = [pa.get_device_info_by_index(i) for i in range(pa.get_device_count())]
-        ins = [d for d in ins if d.get("maxInputChannels", 0) > 0]
-        pa.terminate()
-        if ins:
-            report("ok", f"{len(ins)} input device(s)", ", ".join(d["name"] for d in ins[:3]))
+        try:
+            import pyaudio
+            pa = pyaudio.PyAudio()
+            ins = [pa.get_device_info_by_index(i) for i in range(pa.get_device_count())]
+            ins = [d for d in ins if d.get("maxInputChannels", 0) > 0]
+            pa.terminate()
+            names, via = [d["name"] for d in ins], "pyaudio"
+        except ImportError:
+            import sounddevice as sd
+            names = [d["name"] for d in sd.query_devices() if d["max_input_channels"] > 0]
+            via = "sounddevice"
+        if names:
+            report("ok", f"{len(names)} input device(s) via {via}", ", ".join(names[:3]))
         else:
             report("FAIL", "no input devices", "macOS: grant Microphone permission to your terminal")
     except Exception as e:
-        report("FAIL", "pyaudio probe", f"{e} (brew install portaudio, then reinstall pyaudio)")
+        report("FAIL", "microphone probe", str(e))
 
 
 def main():
