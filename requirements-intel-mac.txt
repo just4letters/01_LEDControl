@@ -11,6 +11,12 @@
 # NumPy 1.x, while OpenCV 5 needs NumPy 2. So this machine runs the older set:
 # torch 2.2.2 / numpy 1.26.4 / OpenCV 4.10.
 #
+# Never compile cryptography from source here: google-genai -> google-auth pulls
+# it in, the newest release has no prebuilt wheel for Intel Mac + Python 3.9,
+# and the fallback source build needs Rust and OpenSSL headers (it failed on the
+# 2020 Air). With this line pip walks back to the newest version that has a wheel.
+--only-binary=cryptography
+
 # PINNED = installed and exercised by tools/bench.py (hand tracking, Whisper,
 # both together). Not yet exercised by the real apps.
 mediapipe==0.10.14
