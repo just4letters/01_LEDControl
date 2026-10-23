@@ -16,6 +16,7 @@
 # and the fallback source build needs Rust and OpenSSL headers (it failed on the
 # 2020 Air). With this line pip walks back to the newest version that has a wheel.
 --only-binary=cryptography
+cryptography==48.0.1   # what pip landed on, on the 2020 Air (the newest, 50.x, has no wheel there)
 
 # PINNED = installed and exercised by tools/bench.py (hand tracking, Whisper,
 # both together). Not yet exercised by the real apps.
