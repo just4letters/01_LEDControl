@@ -76,6 +76,30 @@ works inside any app that uses the shared voice listener.
 macOS will ask for camera and microphone permission for your terminal the
 first time. Whisper downloads its `base.en` model on first listen.
 
+### Setting up a second machine
+
+Git carries the code; it does not carry anything that depends on the room.
+Each machine owns its own calibration, venv and keys.
+
+1. Install Python 3.14 and `brew install portaudio`.
+2. `git clone https://github.com/just4letters/01_LEDControl.git LEDControl`
+   (the remote still has the old name), then `cd LEDControl`.
+3. `python3.14 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`.
+   Slow the first time: Whisper pulls in torch (~2 GB).
+4. Create `.env` with `GEMINI_API_KEY` (and `RUNWAYML_API_SECRET` if you use the
+   runway app).
+5. `python tools/doctor.py`. Expect failures for `led_config.json` and
+   `finger_config.json` on a fresh clone; that is the next step, not a bug.
+6. Calibrate in order: screen, finger, nose (below). Grant camera and mic
+   permission to your terminal when macOS asks.
+7. Check `FINGER_CAMERA_INDEX` / `FACE_CAMERA_INDEX` in `core/config.py`.
+   macOS can number cameras differently on each machine; doctor lists what it
+   finds at each index.
+8. `python main.py`. The first spoken command downloads Whisper's `base.en`.
+
+Calibration files never sync, so a `git pull` on either machine will not
+disturb the other's.
+
 ### Calibration, in order
 
 Calibration is an interaction, not a settings file — you do it by looking at
