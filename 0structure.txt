@@ -1,26 +1,41 @@
-01_LEDControl/
-├── 📁 core/                     # Shared logic and classes
-│   ├── config.py                # (Optional) Helper to load json configs
-│   ├── debug_camera.py
-│   ├── vision.py
-│   └── voice_calibrate.py
-├── 📁 models/                   # Global AI models (NEW)
-│   ├── face_landmarker.task
-│   ├── hand_landmarker.task
-│   └── vosk-model-small-en-us/
-├── 📁 tools/                    # Global setup and mapping scripts (NEW)
-│   ├── nose_calibration.py      <-- Moved from pixel_life_face
-│   └── screen_calibration.py    <-- Moved from pixel_life_face
-├── 📁 visualizer/               # The creative apps
-│   ├── 📁 ambient/
-│   ├── 📁 pixel_life/
-│   ├── 📁 pixel_life_face/
-│   │   └── nose_blink_app.py    <-- Remains here
-│   ├── 📁 pixel_life_runway/
-│   └── 📁 waterfall/
-├── .env
-├── .gitignore
-├── led_config.json              # Global hardware config
-├── nose_config.json             # Global user config
-├── requirements.txt
-└── main.py                      # Master launcher
+LEDControl/ — the light palette of Palettes of the Periphery
+(0.5m LED panel, 256x256, 1.9mm pitch, driven as a second monitor)
+
+Lives at dev/POP/LEDControl/. The GitHub remote is still named 01_LEDControl;
+the numeric prefix was dropped locally when the repos were grouped under POP/.
+
+├── core/                     Shared logic, used by every app
+│   ├── config.py             Central paths + camera/mic constants
+│   ├── vision.py             HandTracker / FaceTracker (MediaPipe + homography)
+│   └── voice.py              Whisper listener + constrained-schema intent parsing
+├── tools/                    Setup and calibration, run before the apps
+│   ├── screen_calibration.py Measures the LED grid inside the 1920x1080 signal
+│   ├── finger_calibrate_voice.py  ArUco + homography, driven by voice
+│   └── nose_calibration.py
+├── visualizer/               The pieces
+│   ├── ambient/              The installation: data-driven light field
+│   │   ├── app.py            Weather / time-of-day / room-motion + voice
+│   │   ├── patterns.py       Pattern registry (render_ambient_frame)
+│   │   ├── data_sources/     weather, time_of_day, motion (+ rss/events stubs)
+│   │   ├── _pixel_canvas.py  Shared canvas harness for the tiers below
+│   │   ├── sketches/         Output tier 01 — see CYCLE.md
+│   │   ├── studies/          Output tier 02 (empty)
+│   │   └── selects/          Output tier 03 (empty)
+│   ├── pixel_life/           Physics canvas built by speaking to it
+│   ├── pixel_life_face/      Nose/blink input variant
+│   ├── pixel_life_runway/    Runway video-generation experiment
+│   ├── waterfall/            + waterfall_evolve/ — earlier pieces
+├── Demos/                    MediaPipe reference demos (body/face/hands/object)
+├── writing/                  Documentation strategy and post drafts
+├── models/                   MediaPipe .task files (gitignored where large)
+├── CYCLE.md                  Output tiers, gates, promotion log
+├── DISPLAY_LAYOUT.md         How the panel is driven — read before a new app
+├── JOURNAL.md                Dated work log for this palette
+├── requirements.txt          Pinned deps (derived from imports, not pip freeze)
+├── main.py                   Master launcher
+└── led_config.json           Grid size + offset within the 1920x1080 signal
+                              (gitignored — local hardware config, as are
+                               finger_config.json / nose_config.json / .env)
+
+Practice-level docs (what a palette is, the tiers, the roadmap) live one level
+up in dev/POP/00_POP/.

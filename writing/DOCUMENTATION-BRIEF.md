@@ -174,12 +174,12 @@ Blocking / open on that post:
   valuable than presenting a resolved result.
 - **Don't invent facts about the work.** If a detail isn't in the code or the
   conversation, ask or leave a marked placeholder.
-- Drafts live in `writing/` in the 01_LEDControl repo and version with the code.
+- Drafts live in `writing/` in the LEDControl repo and version with the code.
 
 ## Relevant files
 
 ```
-01_LEDControl/
+LEDControl/
 ├── writing/
 │   ├── DOCUMENTATION-BRIEF.md      <- this file
 │   └── 01-pointing-at-light.md     <- post 01 draft

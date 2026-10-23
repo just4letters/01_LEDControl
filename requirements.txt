@@ -1,0 +1,42 @@
+# LEDControl — Python dependencies
+#
+# Derived from the actual imports across the codebase, pinned to the versions
+# that were installed and working in the original venv (Python 3.14.4, macOS
+# arm64, Homebrew). Not a pip freeze — that would have captured all 68 packages
+# in the environment including transitive ones, which makes the real
+# dependencies impossible to see.
+#
+#   python3 -m venv venv
+#   source venv/bin/activate
+#   pip install -r requirements.txt
+#
+# NOTE: pygame-ce, not pygame. They install to the same `pygame` namespace but
+# are different projects; installing vanilla pygame will mostly work and then
+# differ somewhere subtle.
+#
+# PyAudio needs portaudio on the system first:  brew install portaudio
+# openai-whisper pulls in torch (~2GB), which is why a fresh install is slow.
+
+google-genai==2.11.0
+mediapipe==0.10.35
+numpy==2.4.6
+openai-whisper==20250625
+opencv-python==5.0.0.93
+pillow==12.3.0
+pyaudio==0.2.14
+pygame-ce==2.5.7
+python-dotenv==1.2.2
+requests==2.34.2
+runwayml==5.12.0
+SpeechRecognition==3.17.0
+
+# Required at runtime, not imported directly:
+#   torch            — pulled in by openai-whisper, used by the local Whisper
+#                      speech recognition in core/voice.py
+#   audioop-lts      — pulled in by SpeechRecognition on Python 3.13+, where
+#                      audioop was removed from the standard library
+#
+# Also present in the old venv but NOT imported anywhere in this codebase, so
+# deliberately left out — add back if something turns out to need them:
+#   sounddevice, soundfile, vosk (the models/vosk-model-small-en-us directory
+#   is a leftover from an earlier speech approach; core/voice.py uses Whisper)

@@ -21,7 +21,7 @@ if ROOT_DIR not in sys.path:
 # 2. Import global paths from the traffic controller
 from core.config import LED_CONFIG_PATH, FINGER_CONFIG_PATH, NOSE_CONFIG_PATH, HAND_MODEL_PATH, FACE_MODEL_PATH
 
-# Load .env file explicitly from two directories up (01_LEDControl/.env)
+# Load .env file explicitly from two directories up (LEDControl/.env)
 dotenv_path = os.path.join(ROOT_DIR, ".env")
 load_dotenv(dotenv_path)
 
