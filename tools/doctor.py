@@ -35,7 +35,7 @@ def section(title):
 
 # import name -> pip name, for the packages requirements.txt pins
 REQUIRED = {
-    "numpy": "numpy", "pygame": "pygame-ce", "cv2": "opencv-python",
+    "numpy": "numpy", "pygame": "pygame-ce", "cv2": "opencv-contrib-python",
     "mediapipe": "mediapipe", "PIL": "pillow", "dotenv": "python-dotenv",
     "google.genai": "google-genai", "speech_recognition": "SpeechRecognition",
     "whisper": "openai-whisper", "pyaudio": "pyaudio", "requests": "requests",
@@ -73,6 +73,11 @@ def check_packages():
     try:
         from importlib import metadata
         names = {d.metadata["Name"].lower() for d in metadata.distributions()}
+        cv = sorted(n for n in names if n.startswith("opencv-"))
+        if len(cv) > 1:
+            report("WARN", "more than one OpenCV package installed: " + ", ".join(cv),
+                   "causes the SDL duplicate-library warnings; keep only opencv-contrib-python "
+                   "(pip uninstall -y <all of them>, then pip install opencv-contrib-python==5.0.0.93)")
         if "pygame" in names and "pygame-ce" in names:
             report("FAIL", "both pygame and pygame-ce installed",
                    "pip uninstall pygame pygame-ce, then reinstall pygame-ce only")
