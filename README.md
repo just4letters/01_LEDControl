@@ -206,10 +206,18 @@ scripts download any that are missing. Gemini model names are hard-coded per
 file as fallback lists (`grep -rn fallback_models`) and have drifted apart —
 `core/voice.py` and the apps don't list the same ones.
 
-**Headless harnesses.** `visualizer/ambient/sketches/_verify_headless.py` and
-`_profile_headless.py` stub pygame to run a sketch for thousands of frames
-without a display — for checking it doesn't crash, and for measuring frame cost.
-Their own docstrings call them scratch files.
+**Headless smoke test.** `visualizer/ambient/sketches/_smoke_headless.py` runs
+each sketch's real `main()` with no window (SDL's dummy video driver) for a few
+thousand frames and checks that nothing raises and something gets lit. It
+exits 1 on failure. Run it after any refactor, or on a new machine:
+
+```bash
+python visualizer/ambient/sketches/_smoke_headless.py                  # all sketches
+python visualizer/ambient/sketches/_smoke_headless.py sketch_03_affinity --profile
+```
+
+Frame times exclude drawing to a real display, so they measure the simulation
+alone: good for comparing sketches and machines, not a promise about the panel.
 
 ---
 
