@@ -82,6 +82,9 @@ def bench_sketches():
     script = os.path.join(ROOT_DIR, "visualizer", "ambient", "sketches", "_smoke_headless.py")
     if not os.path.isfile(script):
         return skip("sketches", "_smoke_headless.py not found")
+    if not os.path.isfile(os.path.join(ROOT_DIR, "led_config.json")):
+        return skip("sketches", "led_config.json is missing (it is gitignored, so a fresh clone has none).\n"
+                                "  For a benchmark any panel's file will do: AirDrop one from the main Mac into this folder.")
     try:
         out = subprocess.run([sys.executable, script, "--frames", "600"], capture_output=True, text=True, timeout=300)
     except Exception as e:
