@@ -41,6 +41,8 @@ soundfile>=0.13.1
 #   audioop-lts      -- pulled in by SpeechRecognition on Python 3.13+, where
 #                       audioop was removed from the standard library
 #
-# Present in the old venv but NOT needed, so deliberately left out:
-#   sounddevice, vosk (models/vosk-model-small-en-us is a leftover from an
-#   earlier speech approach; core/voice.py uses Whisper)
+# Left out on purpose:
+#   vosk -- models/vosk-model-small-en-us is a leftover from an earlier speech
+#           approach; core/voice.py uses Whisper.
+# (sounddevice is installed too, but as a dependency of mediapipe, so pip
+#  handles it; this codebase doesn't import it.)
